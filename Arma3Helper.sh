@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0
 # 
 # Author: Ingo Reitz <9l@9lo.re>
-# Contributing:	famfo (famfo#0227)
+# Contributing:	famfo <famfo@famfo.xyz>
 # Testing:		G4rrus#3755 
 # 
-_SCRIPTVER="1v18-9"
+_SCRIPTVER="1v18-10"
 
 #####################################################################################
 ## Adjust below or use the external config file
@@ -26,7 +26,8 @@ COMPAT_DATA_PATH=""
 # Leave empty if Proton is installed in Steams default library
 STEAM_LIBRARY_PATH=""
 
-# If you are using a custom proton build, then put its folder name (from inside compatibilitytools.d) here
+# If you are using a custom proton build, then put its folder name (from inside
+# compatibilitytools.d or an absoloute path to the proton executable) here
 # Leave empty if proton 
 PROTON_CUSTOM_VERSION=""
 
@@ -62,11 +63,12 @@ fi
 ## FUNCTIONS
 # Installed check ($1 = path; $2 = name in error msg)
 _checkinstall() {
-	if [[ ! $(command -v "$1") ]]; then
+	if [[ ! "$(command -v "$1")" ]]; then
 		echo -e "\e[31mError\e[0m: $1 is not installed!"
 		exit 1
 	fi
 }
+
 # Installed check by path ($1 = path; $2 = name in error msg)
 _checkpath() {
 	if [[ ! -x "$1" ]]; then
@@ -74,26 +76,28 @@ _checkpath() {
 		exit 1
 	fi
 }
+
 # Confirmation prompt
 _confirmation() {
 	read -p "$1 (y/n) " -n 1 -r
 	echo 
-	if [[ ! $REPLY =~ ^[Yy]$ ]]
+	if [[ ! "$REPLY" =~ ^[Yy]$ ]]
 	then
     	exit 1
 	fi
 }
+
 # Get the command to modify the protonprefix
 _get_wrappercmd() {
-	no_winetricks=$(_checkinstall "winetricks")
-	no_protontricks=$(_checkinstall "protontricks")
+	no_winetricks="$(_checkinstall "winetricks")"
+	no_protontricks="$(_checkinstall "protontricks")"
 	wrappercmd=""
 
-	if [[ $no_winetricks && $no_protontricks ]]; then
+	if [[ "$no_winetricks" && "$no_protontricks" ]]; then
 		echo -e "$no_winetricks\n$no_protontricks"
 		exit 1
 	fi
-	if [[ $no_winetricks ]]; then
+	if [[ "$no_winetricks" ]]; then
 		echo "protontricks 107410"
 	else
 		echo "winetricks"
@@ -104,29 +108,36 @@ _get_wrappercmd() {
 if [[ -z "$COMPAT_DATA_PATH" ]]; then
 	COMPAT_DATA_PATH="$HOME/.steam/steam/steamapps/compatdata/107410"
 fi
+
 export STEAM_COMPAT_DATA_PATH="$COMPAT_DATA_PATH"
 export STEAM_COMPAT_CLIENT_INSTALL_PATH="$HOME/.steam/steam"
 export SteamAppId="107410"
 export SteamGameId="107410"
-if [[ $ESYNC == false ]]; then
+if [[ "$ESYNC" == "false" ]]; then
 	export PROTON_NO_ESYNC="1"
 fi
-if [[ $FSYNC == false ]]; then
+
+if [[ "$FSYNC" == "false" ]]; then
 	export PROTON_NO_FSYNC="1"
 fi
+
 TSPATH="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe"
 
 # Handle Proton Experimental or empty Version string
-if [[ $PROTON_OFFICIAL_VERSION == "Proton Experimental" || $PROTON_OFFICIAL_VERSION == "Experimental" ]]; then
+if [[ "$PROTON_OFFICIAL_VERSION" == "Proton Experimental" || "$PROTON_OFFICIAL_VERSION" == "Experimental" ]]; then
 	PROTON_OFFICIAL_VERSION="- Experimental"
 	IS_EXPERIMENTAL=true
-elif [[ -z $PROTON_OFFICIAL_VERSION ]]; then
+elif [[ -z "$PROTON_OFFICIAL_VERSION" ]]; then
 	PROTON_OFFICIAL_VERSION="8.0"
 fi
 
 # Executable paths
 if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
-	PROTONEXEC="$HOME/.steam/steam/compatibilitytools.d/$PROTON_CUSTOM_VERSION/proton"
+    if [[ -x "$PROTON_CUSTOM_VERSION" ]]; then
+        PROTONEXEC="$PROTON_CUSTOM_VERSION"
+    else
+        PROTONEXEC="$HOME/.steam/steam/compatibilitytools.d/$PROTON_CUSTOM_VERSION/proton"
+    fi
 else
 	if [[ -n "$STEAM_LIBRARY_PATH" ]]; then
 		PROTONEXEC="$STEAM_LIBRARY_PATH/common/Proton $PROTON_OFFICIAL_VERSION/proton"
@@ -136,102 +147,129 @@ else
 fi
 
 # Start
-if [[ -z $* ]]; then
+if [[ -z "$*" ]]; then
 	# Check if TS is installed
 	_checkpath "$TSPATH" "TeamSpeak"
 	echo "Caution: Arma needs to be started first!"
 	sh -c "'$PROTONEXEC' run '$TSPATH'"
-# TS installer
-elif [[ $1 == "install" ]]; then 
-	echo "Trying to install Teamspeak with provided file"
-	echo -e "\e[31mINSTALL TEAMSPEAK FOR ALL USERS AND LEAVE THE PATH DEFAULT!!!\e[0m \n"
-	sleep 2
-	if [[ -z $2 ]]; then
-		echo "Error - no installer exe provided"
-		exit 1
-	fi
-	sh -c "'$PROTONEXEC' run '$2'"
-# Debug information
-elif [[ $1 = "debug" ]]; then
-	echo "DEBUGGING INFORMATION"
-	echo
-	echo "Script Version: $_SCRIPTVER"
-	_UPVER=$(curl -s https://raw.githubusercontent.com/ninelore/armaonlinux/master/version)
-	if [[ $_SCRIPTVER != "$_UPVER" ]]; then
-		echo -e "\e[31mScript Version $_UPVER is available!\e[0m"
-		echo "https://github.com/ninelore/armaonlinux"
-	fi
-	echo
-	echo "Command Line:"
-	echo "sh -c \"'$PROTONEXEC' run '$TSPATH'\""
-	echo
-	if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
-		echo "Proton: custom $PROTON_CUSTOM_VERSION"
-	elif [[ $IS_EXPERIMENTAL == true ]]; then
-		echo "Proton: official Experimental"
-	else
-		echo "Proton: official $PROTON_OFFICIAL_VERSION"
-	fi
-	echo
-	echo "Enviromental Variables"
-	echo "STEAM_COMPAT_DATA_PATH: $STEAM_COMPAT_DATA_PATH"
-	echo "SteamAppId/SteamGameId: $SteamAppId $SteamGameId"
-	echo "ESync: $ESYNC"
-	echo "FSync: $FSYNC"
-# Winetricks wrapper for Arma's compatdata
-elif [[ $1 = "winetricks" ]]; then
-	echo "Executing winetricks inside Arma's compatdata prefix..."
-	wrappercmd=$(_get_wrappercmd)
-	echo "Using \"$wrappercmd\""
-	export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
-	if [[ $2 = "Arma" ]]; then
-		echo "Installing recommended features/DLLs for Arma"
-		$wrappercmd d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29
-		echo "done"
-	else
-		echo "Arguments: ${*:2}"
-		$wrappercmd "${*:2}"
-	fi
-elif [[ $1 = "winecfg" ]]; then
-	echo "Starting winecfg via winetricks for Arma's compatdata..."
-	wrappercmd=$(_get_wrappercmd)
-	echo "Running $wrappercmd winecfg"
-	export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
-	$wrappercmd winecfg
-# Updater
-elif [[ $1 = "update" ]]; then
-	echo -e "\e[31mUpdating the script will reset your changes in the script options!\e[0m"
-	echo "However, it will not reset your settings in ~/.arma3helper."
-	_confirmation "Are you sure?"
-	curl -o "$0" https://raw.githubusercontent.com/ninelore/armaonlinux/master/Arma3Helper.sh
-	echo "The Script was updated!"
-# create extermal config
-elif [[ $1 = "createconfig" ]]; then
-	if [[ -e "$USERCONFIG/config" ]]; then
-		echo -e "\e[31mA config file already exists!\e[0m"
-		_confirmation "Do you want to override it?"
-	else
-		mkdir -p "$USERCONFIG"
-	fi
-	curl -o "$USERCONFIG/config" https://raw.githubusercontent.com/ninelore/armaonlinux/master/config
-else
-	echo "SCRIPT USAGE"
-	echo
-	echo -e "\e[31mDouble check the script settings before reporting any problems!\e[0m"
-	echo
-	echo "./Arma3Helper.sh                                      - Start Teamspeak"
-	echo
-	echo "./Arma3Helper.sh install [installer exe path]         - Install Teamspeak"
-	echo
-	echo "./Arma3Helper.sh winetricks [winetricks arguments]    - Run a winetricks command inside the Arma prefix"
-	echo
-	echo "./Arma3Helper.sh winetricks Arma                      - Install recommended Features/DLLs for Arma via winetricks [As per Guide Chapter 5.1]"
-	echo
-	echo "./Arma3Helper.sh winecfg                              - Run winecfg for the Arma prefix"
-	echo
-	echo "./Arma3Helper.sh debug                                - Print Debugging Information"
-	echo 
-	echo "./Arma3Helper.sh update                               - Update the script from github master"
-	echo
-	echo "./Arma3Helper.sh createconfig                         - Creates an external config file in your ~/.config/ directory"
 fi
+
+case "$1" in
+    # TS installer
+    "install")
+        echo "Trying to install Teamspeak with provided file"
+        echo -e "\e[31mINSTALL TEAMSPEAK FOR ALL USERS AND LEAVE THE PATH DEFAULT!!!\e[0m \n"
+        sleep 2
+
+        if [[ -z $2 ]]; then
+            echo "Error - no installer exe provided"
+            exit 1
+        fi
+
+        sh -c "'$PROTONEXEC' run '$2'"
+    ;;
+    # Debug information
+    "debug")
+        echo "DEBUGGING INFORMATION"
+        echo
+        echo "Script Version: $_SCRIPTVER"
+
+        _UPVER=$(curl -s https://raw.githubusercontent.com/ninelore/armaonlinux/master/version)
+        if [[ "$_SCRIPTVER" != "$_UPVER" ]]; then
+            echo -e "\e[31mScript Version $_UPVER is available!\e[0m"
+            echo "https://github.com/ninelore/armaonlinux"
+        fi
+
+        echo
+        echo "Command Line:"
+        echo "sh -c \"'$PROTONEXEC' run '$TSPATH'\""
+        echo
+
+        if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
+            echo "Proton: custom $PROTON_CUSTOM_VERSION"
+        elif [[ "$IS_EXPERIMENTAL" == true ]]; then
+            echo "Proton: official Experimental"
+        else
+            echo "Proton: official $PROTON_OFFICIAL_VERSION"
+        fi
+
+        echo
+        echo "Enviromental Variables"
+        echo "STEAM_COMPAT_DATA_PATH: $STEAM_COMPAT_DATA_PATH"
+        echo "SteamAppId/SteamGameId: $SteamAppId $SteamGameId"
+        echo "ESync: $ESYNC"
+        echo "FSync: $FSYNC"
+    ;;
+    "winetricks")
+        echo "Executing winetricks inside Arma's compatdata prefix..."
+        wrappercmd="$(_get_wrappercmd)"
+        # shellcheck disable=SC2181
+        if [[ "$?" != 0 ]]; then
+            echo "$wrappercmd"
+            exit 1
+        fi
+
+        echo "Using \"$wrappercmd\""
+        export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
+        if [[ $2 = "Arma" ]]; then
+            echo "Installing recommended features/DLLs for Arma"
+            $wrappercmd d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29
+            echo "done"
+        else
+            echo "Arguments: ${*:2}"
+            $wrappercmd "${*:2}"
+        fi
+    ;;
+    "winecfg")
+        echo "Starting winecfg via winetricks for Arma's compatdata..."
+        wrappercmd="$(_get_wrappercmd)"
+        # shellcheck disable=SC2181
+        if [[ "$?" != 0 ]]; then
+            echo "$wrappercmd"
+            exit 1
+        fi
+
+        echo "Running $wrappercmd winecfg"
+        export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
+        $wrappercmd winecfg
+    ;;
+    # Updater
+    "update")
+        echo -e "\e[31mUpdating the script will reset your changes in the script options!\e[0m"
+        echo "However, it will not reset your settings in ~/.arma3helper."
+        _confirmation "Are you sure?"
+        curl -o "$0" https://raw.githubusercontent.com/ninelore/armaonlinux/master/Arma3Helper.sh
+        echo "The Script was updated!"
+    ;;
+    # create extermal config
+    "createconfig")
+        if [[ -e "$USERCONFIG/config" ]]; then
+            echo -e "\e[31mA config file already exists!\e[0m"
+            _confirmation "Do you want to override it?"
+        else
+            mkdir -p "$USERCONFIG"
+        fi
+        curl -o "$USERCONFIG/config" https://raw.githubusercontent.com/ninelore/armaonlinux/master/config
+    ;;
+    *)
+        echo "SCRIPT USAGE"
+        echo
+        echo -e "\e[31mDouble check the script settings before reporting any problems!\e[0m"
+        echo
+        echo "./Arma3Helper.sh                                      - Start Teamspeak"
+        echo
+        echo "./Arma3Helper.sh install [installer exe path]         - Install Teamspeak"
+        echo
+        echo "./Arma3Helper.sh winetricks [winetricks arguments]    - Run a winetricks command inside the Arma prefix"
+        echo
+        echo "./Arma3Helper.sh winetricks Arma                      - Install recommended Features/DLLs for Arma via winetricks [As per Guide Chapter 5.1]"
+        echo
+        echo "./Arma3Helper.sh winecfg                              - Run winecfg for the Arma prefix"
+        echo
+        echo "./Arma3Helper.sh debug                                - Print Debugging Information"
+        echo
+        echo "./Arma3Helper.sh update                               - Update the script from github master"
+        echo
+        echo "./Arma3Helper.sh createconfig                         - Creates an external config file in your ~/.config/ directory"
+    ;;
+esac
