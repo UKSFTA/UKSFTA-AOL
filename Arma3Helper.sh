@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # 
 # Author: Ingo Reitz <9l@9lo.re>
-# Contributing:	famfo (famfo#0227)
+# Contributing:	famfo <famfo@famfo.xyz>
 # Testing:		G4rrus#3755 
 # 
 _SCRIPTVER="1v18-9"
@@ -26,7 +26,8 @@ COMPAT_DATA_PATH=""
 # Leave empty if Proton is installed in Steams default library
 STEAM_LIBRARY_PATH=""
 
-# If you are using a custom proton build, then put its folder name (from inside compatibilitytools.d) here
+# If you are using a custom proton build, then put its folder name (from inside
+# compatibilitytools.d or an absoloute path to the proton executable) here
 # Leave empty if proton 
 PROTON_CUSTOM_VERSION=""
 
@@ -126,7 +127,11 @@ fi
 
 # Executable paths
 if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
-	PROTONEXEC="$HOME/.steam/steam/compatibilitytools.d/$PROTON_CUSTOM_VERSION/proton"
+    if [[ -x "$PROTON_CUSTOM_VERSION" ]]; then
+        PROTONEXEC="$PROTON_CUSTOM_VERSION"
+    else
+        PROTONEXEC="$HOME/.steam/steam/compatibilitytools.d/$PROTON_CUSTOM_VERSION/proton"
+    fi
 else
 	if [[ -n "$STEAM_LIBRARY_PATH" ]]; then
 		PROTONEXEC="$STEAM_LIBRARY_PATH/common/Proton $PROTON_OFFICIAL_VERSION/proton"

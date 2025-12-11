@@ -19,9 +19,10 @@ export COMPAT_DATA_PATH=""
 # Leave empty if Proton is installed in Steams default library
 export STEAM_LIBRARY_PATH=""
 
-# If you are using a custom proton build, then put its folder name (from inside compatibilitytools.d) here
+# If you are using a custom proton build, then put its folder name (from inside
+# compatibilitytools.d or an absoloute path to the proton executable) here
 # Leave empty if proton 
-export PROTON_CUSTOM_VERSION=""
+PROTON_CUSTOM_VERSION=""
 
 ## Esync/Fsync
 # IMPORTANT: Make sure that Esync and Fsync settings MATCH for both Arma and TeamSpeak(here)
