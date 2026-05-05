@@ -1,0 +1,1150 @@
+---
+title: "Arma 3 on Linux"
+subtitle: "A Comprehensive Installation and Configuration Guide — Including ACRE2 and TFAR"
+author: "UKSF Taskforce Alpha Development Team"
+subject: "This guide explains how to install and configure Arma 3 on a Linux operating system, covering the full process from first-time setup to advanced radio communication using ACRE2 and TFAR."
+date: 2026-05-05
+keywords: [Arma 3, Linux, Proton, ACRE2, TFAR, Installation]
+titlepage: true
+titlepage-color: "1e1e1e"
+titlepage-text-color: "FFFFFF"
+titlepage-rule-color: "FFFFFF"
+titlepage-rule-height: 2
+toc: true
+toc-own-page: true
+number-sections: true
+colorlinks: true
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-title: "Contents"
+    number-sections: true
+    theme: cosmo
+    highlight-style: github
+    code-copy: true
+    smooth-scroll: true
+    standalone: true
+  pdf:
+    pdf-engine: xelatex
+    template: templates/eisvogel.latex
+    mermaid-format: png
+    documentclass: article
+    classoption: oneside
+    geometry: "left=2cm,right=2cm,top=2.5cm,bottom=2.5cm"
+    include-in-header:
+      text: |
+        \usepackage{microtype}
+        \usepackage{setspace}
+        \usepackage{xcolor}
+        \usepackage{afterpage}
+        \setstretch{1.15}
+        \tolerance=1000
+        \emergencystretch=2em
+        \hyphenpenalty=500
+        \usepackage{graphicx}
+        % Force all images/figures to fit within text width
+        \makeatletter
+        \def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+        \def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+        \definecolor{covercolor}{HTML}{1e1e1e}
+        \makeatother
+        \let\oldincludegraphics\includegraphics
+        \renewcommand{\includegraphics}[2][]{\oldincludegraphics[width=\maxwidth,height=\maxheight,keepaspectratio]{#2}}
+---
+# Preface {.unnumbered}
+
+## Purpose
+
+This guide explains how to run Arma 3 on a Linux computer. It also covers the installation of two radio communication plugins — ACRE2 and TFAR — which many Arma 3 communities use. Both plugins require additional setup that is not needed for the base game.
+
+Linux cannot run Windows games natively. Valve's Proton compatibility layer bridges this gap. Proton translates Windows instructions into Linux equivalents at runtime. The process is largely transparent once configured.
+
+The guide is written for readers with basic Linux terminal experience. Each step is explained in full. Where a command must be typed, the exact command is shown in a code block. Read each section before executing any command.
+
+## Scope
+
+This guide covers:
+
+- System preparation and dependency installation.
+- Steam and Proton configuration.
+- Arma 3 download and initial launch.
+- The Arma3Helper script and its use.
+- TeamSpeak 3 (Windows version) installation inside Proton.
+- ACRE2 plugin installation and configuration.
+- TFAR plugin installation and configuration.
+- Troubleshooting common problems.
+- Performance optimisation.
+
+This guide does not cover:
+
+- Arma 3 server administration.
+- Mod development.
+- Windows or macOS systems.
+
+## Fork and Purpose
+
+This repository is a community-maintained fork of the original `armaonlinux` project. It was developed by members of our milsim community to provide enhanced documentation, improved installation scripts, and better support for custom configurations.
+
+While created to streamline the onboarding process for our own members, we have made this public to support the wider Arma on Linux/Unix community. Our goal is to provide a comprehensive, professional resource that allows anyone, regardless of experience level, to successfully play Arma 3 on Linux.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 1 — Understanding the Technology
+
+## What Is Proton?
+
+Proton is a compatibility layer developed by Valve. It allows Linux users to run Windows games through Steam. Proton is built on top of Wine, an open-source Windows compatibility project. Valve adds significant improvements to Wine, including better graphics performance and game-specific fixes.
+
+Each game running under Proton has its own isolated Windows environment. This is called a **Wine prefix** or **compatdata** directory. The prefix contains a virtual Windows file system. Changes made inside one prefix do not affect others or the host Linux system.
+
+Arma 3's Wine prefix is stored at:
+
+```         
+<SteamLibrary>/steamapps/compatdata/107410/
+```
+
+The number `107410` is Arma 3's Steam Application ID. This number is used throughout the guide and in configuration files.
+
+## What Is ACRE2?
+
+ACRE2 stands for Advanced Combat Radio Environment 2. It is an Arma 3 mod that simulates realistic military radio communication. When active, players hear radio traffic through their headset as though using a real radio. Sound quality, distance, and terrain all affect communication.
+
+ACRE2 requires a TeamSpeak 3 plugin to function. The plugin must run inside the same Wine prefix as Arma 3. It cannot use the native Linux version of TeamSpeak.
+
+ACRE2 depends on CBA_A3 (Community Base Addons for Arma 3). This mod must also be active for ACRE2 to work. Both are available on the Steam Workshop.
+
+## What Is TFAR?
+
+TFAR stands for Task Force Arrowhead Radio. Like ACRE2, it is an Arma 3 mod that simulates radio communication via TeamSpeak 3. TFAR is widely used by European Arma communities.
+
+TFAR also requires a TeamSpeak 3 plugin. This plugin must be installed manually inside the Wine prefix. The process is described in Chapter 9.
+
+ACRE2 and TFAR serve the same purpose but are incompatible with each other. A community uses one or the other. Check with your unit before installing either.
+
+## Why Not Use Native Linux TeamSpeak?
+
+The ACRE2 and TFAR plugins are compiled for Windows. They cannot load into the native Linux TeamSpeak client. The only supported approach is to run the Windows version of TeamSpeak 3 inside Arma's Wine prefix. The Arma3Helper script automates this.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 2 — Prerequisites and System Preparation
+
+## Hardware and Software Requirements
+
+The following are required before starting:
+
+- A 64-bit Linux installation (any modern distribution).
+- A Steam account with Arma 3 purchased.
+- An internet connection for downloads.
+- Approximately 50 GB of free disk space for the game.
+
+The following software must be present before proceeding. Most distributions include these by default. Install any that are missing using your package manager.
+
+- `bash` (version 4 or newer).
+- `curl` (used by the Arma3Helper script for updates).
+- GPU drivers appropriate for your hardware. Ensure they are up to date.
+- Wine staging (recommended). Install all its dependencies as prompted.
+
+## Enabling 32-bit Support (Multilib)
+
+Steam uses 32-bit components internally. Audio support under Proton also requires 32-bit libraries. You must enable 32-bit package support on your distribution before installing GStreamer and related packages.
+
+### Arch Linux
+
+Edit the Pacman configuration file:
+
+``` bash
+sudo nano /etc/pacman.conf
+```
+
+Find the following two lines. They will be commented out with a `#` character at the start:
+
+```         
+#[multilib]
+#Include = /etc/pacman.d/mirrorlist
+```
+
+Remove the `#` from both lines so they read:
+
+```         
+[multilib]
+Include = /etc/pacman.d/mirrorlist
+```
+
+Save the file and update the package database:
+
+``` bash
+sudo pacman -Sy
+```
+
+### Debian and Ubuntu
+
+Enable 32-bit package support with:
+
+``` bash
+sudo dpkg --add-architecture i386
+sudo apt update
+```
+
+### Fedora
+
+Fedora supports 32-bit packages through its standard repositories. No additional configuration is needed.
+
+## Installing GStreamer
+
+Arma 3 uses GStreamer to handle audio. Proton requires both the 64-bit and 32-bit versions. Install them for your distribution:
+
+::: {.content-visible when-format="html"}
+::: {.panel-tabset}
+
+### Arch Linux
+```bash
+sudo pacman -S gstreamer gst-plugins-base gst-plugins-good \
+lib32-gstreamer lib32-gst-plugins-base lib32-gst-plugins-good
+```
+
+### Debian/Ubuntu
+```bash
+sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-base \
+gstreamer1.0-plugins-good \
+gstreamer1.0-tools:i386 gstreamer1.0-plugins-base:i386 \
+gstreamer1.0-plugins-good:i386
+```
+
+### Fedora
+```bash
+sudo dnf install gstreamer1 gstreamer1-plugins-base \
+gstreamer1-plugins-good \
+gstreamer1.i686 gstreamer1-plugins-base.i686 \
+gstreamer1-plugins-good.i686
+```
+:::
+:::
+
+::: {.content-visible when-format="pdf"}
+**Arch Linux**
+```bash
+sudo pacman -S gstreamer gst-plugins-base gst-plugins-good \
+lib32-gstreamer lib32-gst-plugins-base lib32-gst-plugins-good
+```
+
+**Debian/Ubuntu**
+```bash
+sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-base \
+gstreamer1.0-plugins-good \
+gstreamer1.0-tools:i386 gstreamer1.0-plugins-base:i386 \
+gstreamer1.0-plugins-good:i386
+```
+
+**Fedora**
+```bash
+sudo dnf install gstreamer1 gstreamer1-plugins-base \
+gstreamer1-plugins-good \
+gstreamer1.i686 gstreamer1-plugins-base.i686 \
+gstreamer1-plugins-good.i686
+```
+:::
+## Resolving Startup Crashes
+
+If Arma 3 crashes on startup, it is often due to outdated GPU drivers or missing Vulkan libraries. To resolve these issues:
+
+- **Update GPU Drivers:** Ensure your system's graphics drivers are up to date. For AMD and Intel users, this means keeping your **Mesa** drivers current. NVIDIA users should ensure the latest proprietary drivers are installed.
+- **Install Vulkan Libraries:** Ensure the necessary Vulkan support packages for your distribution are installed (e.g., `vulkan-tools`, `mesa-vulkan-drivers`).
+- **Clear Shader Cache:** If the game crashes after previously working, the local shader cache may be corrupted. You can safely clear this by deleting the contents of the shader cache directory for Arma 3 (Steam App ID 107410):
+```bash
+rm -rf ~/.local/share/Steam/steamapps/shadercache/107410/*
+```
+- **Verify Proton:** If issues persist, use Steam's "Verify Integrity of Game Files" feature.
+
+
+## Installing winetricks or protontricks
+
+The Arma3Helper script uses either `winetricks` or `protontricks` to install Windows components into Arma's Wine prefix. At least one must be installed.
+
+`protontricks` is generally preferred for Steam games because it correctly identifies the game's prefix automatically. Install whichever your distribution provides. Both can coexist without conflict.
+
+### Arch Linux
+
+``` bash
+# Install protontricks from AUR using your preferred AUR helper:
+yay -S protontricks
+
+# Or install winetricks:
+sudo pacman -S winetricks
+```
+
+### Debian and Ubuntu
+
+``` bash
+sudo apt install winetricks
+
+# protontricks can be installed via pip:
+pip install protontricks --break-system-packages
+```
+
+### Fedora
+``` bash
+sudo dnf install winetricks
+```
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 3 — Steam and Proton Configuration
+
+## Installing Steam
+
+If Steam is not already installed, install it from your distribution's package manager. Ensure you install the official Steam package, not a third-party wrapper.
+
+``` bash
+# Arch Linux:
+sudo pacman -S steam
+
+# Debian/Ubuntu:
+sudo apt install steam
+
+# Fedora (from RPM Fusion repository):
+sudo dnf install steam
+```
+
+Launch Steam and log into your account before continuing.
+
+## Enabling Steam Play for All Titles
+
+Steam Play is Valve's branding for Proton compatibility. It must be enabled for games that do not have a native Linux version.
+
+Open Steam. Click **Steam** in the top menu bar, then click **Settings**. In the settings window, scroll to **Steam Play** in the left column.
+
+Enable both of the following:
+
+- **Enable Steam Play for supported titles**
+- **Enable Steam Play for all other titles**
+
+In the dropdown labelled **Run other titles with**, select the latest stable Proton version available. Do not select **Proton Experimental** — it receives frequent changes and may introduce instability.
+
+Click **OK** and restart Steam when prompted.
+
+## Setting a Proton Version Specifically for Arma 3
+
+The global Steam Play setting applies Proton to all games. Arma 3 also needs a version pinned specifically for it. This ensures Arma always uses a known good version regardless of the global default.
+
+Right-click on Arma 3 in your Steam library. Click **Properties**.
+
+Navigate to the **Compatibility** tab. Enable the checkbox labelled **Force the use of a specific Steam Play compatibility tool**.
+
+Select the same Proton version you chose in step 3.6. Close the Properties window.
+
+Make a note of the Proton version you selected. You will need it when configuring the Arma3Helper script in Chapter 5.
+
+## Adding Arma 3 Launch Options
+
+Arma 3 can be launched with the official launcher or with the `-nolauncher` flag to bypass it. The Arma 3 Unix Launcher (described in Chapter 4) is the recommended approach. If you intend to use the `-nolauncher` flag, add it here.
+
+In Arma 3's Steam Properties, go to the **General** tab. In the **Launch Options** field, add:
+
+```         
+%command% -nolauncher
+```
+
+The `-nolauncher` flag skips the official Bohemia Interactive launcher. This is optional but speeds up startup. The Arma 3 Unix Launcher is a superior replacement when managing mods.
+
+## Understanding Custom Proton Builds (GE-Proton)
+
+Community-built Proton versions exist alongside the official ones. The most common is **GE-Proton** (Glorious Eggroll Proton). GE-Proton includes additional patches and fixes not yet incorporated into official Proton.
+
+For most users, official Proton is sufficient for Arma 3. GE-Proton is worth trying if you encounter specific issues that official Proton does not resolve.
+
+Custom Proton builds are installed into:
+
+```         
+~/.steam/steam/compatibilitytools.d/
+```
+
+Tools such as **ProtonUp-Qt** and **ProtonPlus** simplify the installation of GE-Proton. They are available in most distribution repositories and on Flathub.
+
+Once a custom build is installed, you can select it in Steam under the **Compatibility** tab for Arma 3. The Arma3Helper script can also use it. Run `./Arma3Helper.sh listproton` to see all installed versions.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 4 — Installing Arma 3
+
+## Before You Download
+
+Complete all steps in Chapters 2 and 3 before downloading Arma 3. The Proton version must be set before the first download. Changing it afterwards requires reinstalling the game.
+
+If you have Arma 3 on an external drive or a secondary Steam library, Steam will detect this automatically. The Arma3Helper script also handles external library paths without manual configuration.
+
+## Downloading and First Launch
+
+In your Steam library, click on Arma 3 and start the download. Allow the download to complete fully before proceeding.
+
+Once the download is complete, launch Arma 3 from Steam. Wait for the game to reach the main menu. You do not need to enter any mission or server. Reaching the main menu is enough.
+
+This first launch is essential. Proton generates the Wine prefix for Arma 3 during this step. The Wine prefix must exist before TeamSpeak 3 can be installed into it. If you skip this step, subsequent steps will fail.
+
+Once the main menu appears, exit the game normally.
+
+## Installing the Arma 3 Unix Launcher (Recommended)
+
+The official Bohemia Interactive launcher does not integrate well with Linux mod management. The **Arma 3 Unix Launcher** by muttleyxd is a purpose-built replacement. It is strongly recommended.
+
+The Unix Launcher provides the following advantages over the official launcher:
+
+- Native Linux interface with no compatibility issues.
+- Reliable mod management and preset loading.
+- Direct support for launch parameters.
+- No requirement for the `-nolauncher` flag.
+
+Install the Arma 3 Unix Launcher from one of the following sources:
+
+- **Arch Linux AUR**: `yay -S arma3-unix-launcher-bin`
+- **.deb or .AppImage**: [Download from GitHub](https://github.com/muttleyxd/arma3-unix-launcher/releases/latest)
+
+To open a mod preset, right-click on the mod list in the Unix Launcher. You can disable all mods from the right-click menu before loading a different preset.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 5 — The Arma3Helper Script
+
+## What the Script Does
+
+The Arma3Helper script is a command-line tool that manages the interface between Linux and Arma 3's Wine prefix. It performs four main functions:
+
+- Launches TeamSpeak 3 inside the correct Wine environment.
+- Installs TeamSpeak 3 into Arma's Wine prefix.
+- Runs winetricks and winecfg inside the Arma prefix.
+- Provides diagnostic and dependency-checking tools.
+
+The script is required for ACRE2 and TFAR. Without it, TeamSpeak 3 will not communicate with Arma 3.
+
+## Obtaining the Script
+
+Download the script from the GitHub repository:
+
+``` bash
+# Download directly to your home directory:
+curl -o ~/Arma3Helper.sh \
+https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh
+
+# Make it executable:
+chmod +x ~/Arma3Helper.sh
+```
+
+Place the script in your home directory for easy access. All commands in this guide assume it is located there.
+
+## Configuring the Script
+
+The script can be configured in two ways. The preferred method is an external configuration file, which persists across script updates. The alternative is to edit the script directly, but this is overwritten whenever you run the update command.
+
+Create the external configuration file with:
+
+``` bash
+./Arma3Helper.sh createconfig
+```
+
+This creates a file at `~/.config/arma3helper/config`. Open it in a text editor and adjust the values as described below.
+
+### Setting the Proton Version
+
+Set `PROTON_OFFICIAL_VERSION` to match the Proton version you selected in Steam for Arma 3 (see Chapter 3, step 3.11). The value must match exactly.
+
+``` bash
+# Official Proton example:
+PROTON_OFFICIAL_VERSION="9.0"
+
+# Proton Experimental:
+PROTON_OFFICIAL_VERSION="Experimental"
+```
+
+If you are using a custom Proton build such as GE-Proton, leave `PROTON_OFFICIAL_VERSION` empty and set `PROTON_CUSTOM_VERSION` instead:
+
+``` bash
+PROTON_CUSTOM_VERSION="GE-Proton9-20"
+```
+
+To find the exact name of your installed custom build, run:
+
+``` bash
+./Arma3Helper.sh listproton
+```
+
+### Steam Library Paths (usually not needed)
+
+The script automatically detects all Steam library paths by reading Steam's configuration file. This includes external drives and secondary libraries. In most cases, you do not need to set `COMPAT_DATA_PATH` or `STEAM_LIBRARY_PATH` manually.
+
+If auto-detection fails, the debug command will show what the script found:
+
+``` bash
+./Arma3Helper.sh debug
+```
+
+Set paths manually only if the debug output shows an incorrect location.
+
+### Esync and Fsync
+
+Esync and Fsync are performance features that reduce CPU overhead. They must match the settings Arma 3 uses in Steam. If you have not explicitly disabled either for Arma 3, leave both as `true` in the config file.
+
+``` bash
+ESYNC=true
+FSYNC=true
+```
+
+## Checking Dependencies
+
+After configuring the script, run the dependency check:
+
+``` bash
+./Arma3Helper.sh checkdeps
+```
+
+The check reports the status of all required packages. If any are missing, it prints the exact install command to use. Resolve all missing packages before continuing.
+
+## Available Script Commands
+
+The following commands are available. Run `./Arma3Helper.sh help` to see this list at any time.
+
+| Command | Description |
+|------------------------------|------------------------------------------|
+| `./Arma3Helper.sh` | Launch TeamSpeak 3 (start Arma first) |
+| `./Arma3Helper.sh install <exe>` | Install TeamSpeak 3 into the prefix |
+| `./Arma3Helper.sh winetricks Arma` | Install recommended DLLs |
+| `./Arma3Helper.sh winetricks <args>` | Run any winetricks command |
+| `./Arma3Helper.sh winecfg` | Open Wine configuration |
+| `./Arma3Helper.sh checkdeps` | Check required packages |
+| `./Arma3Helper.sh listproton` | List available Proton versions |
+| `./Arma3Helper.sh debug` | Print diagnostic information |
+| `./Arma3Helper.sh update` | Update script from GitHub |
+| `./Arma3Helper.sh createconfig` | Create external config file |
+| `./Arma3Helper.sh help` | Show usage information |
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 6 — Installing Required Windows Components
+
+Before installing TeamSpeak 3, install the Windows components that Arma 3 and its radio plugins require. The script handles this with a single command.
+
+Ensure Arma 3 has been launched at least once (Chapter 4, step 4.4) before running this command. The Wine prefix must exist.
+
+Run:
+
+``` bash
+./Arma3Helper.sh winetricks Arma
+```
+
+This installs the following components into Arma's Wine prefix:
+
+| Component        | Purpose                                                  |
+|---------------------------------------|---------------------------------|
+| `d3dcompiler_43` | DirectX shader compiler. Fixes certain rendering issues. |
+| `d3dx10_43`      | DirectX 10 runtime. Required by some mods.               |
+| `d3dx11_43`      | DirectX 11 runtime. Required by some mods.               |
+| `xact_x64`       | Microsoft XACT audio engine. Fixes audio problems.       |
+| `xaudio29`       | XAudio2 library. Fixes audio crackling at high volume.   |
+
+The installation may take several minutes. Do not interrupt it. A slow internet connection will extend the time needed.
+
+After completion, launch Arma 3 once to verify the game works correctly. Check that audio functions as expected. If thermal vision effects are broken in-game, this step resolves that as well.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 7 — Installing TeamSpeak 3
+
+## Why TeamSpeak 3 Must Run Inside Wine
+
+ACRE2 and TFAR communicate between Arma 3 and TeamSpeak 3 using shared memory. Both applications must run inside the same Wine environment for this to work. The Windows version of TeamSpeak 3 must therefore be installed directly into Arma's Wine prefix.
+
+The native Linux TeamSpeak 3 client cannot load the ACRE2 or TFAR Windows plugins. Do not use it for this purpose.
+
+## Downloading TeamSpeak 3
+
+7.3. Download the TeamSpeak 3 Windows installer from the [official website](https://www.teamspeak.com/en/downloads/).
+
+7.4. Select the **Windows** version. Choose the **64-bit** installer. The filename will resemble `TeamSpeak3-Client-win64-3.x.x.exe`. Save it to a convenient location such as your Downloads folder.
+
+
+Do not use the Linux version. Do not use TeamSpeak 5. TeamSpeak 5 does not yet support the ACRE2 or TFAR plugins.
+
+## Running the Installer
+
+Run the installer through the Arma3Helper script:
+
+``` bash
+./Arma3Helper.sh install ~/Downloads/TeamSpeak3-Client-win64-3.x.x.exe
+```
+
+Replace the filename with the actual name of the file you downloaded.
+
+The Windows installer will open inside a Wine window. You must follow three critical steps during installation. Failing to follow them exactly will cause the script to be unable to find TeamSpeak 3 afterwards.
+
+### Critical Step 1 — Select "Install for All Users"
+
+When the installer asks where to install TeamSpeak 3, select the option labelled **Install for All Users**. Do not select **Install for current user only**.
+
+The reason for this is important. "Install for All Users" places TeamSpeak 3 at:
+
+```         
+C:\Program Files\TeamSpeak 3 Client\
+```
+
+"Install for current user only" places it at:
+
+```         
+C:\Users\steamuser\AppData\Local\TeamSpeak 3 Client\
+```
+
+The Arma3Helper script looks for TeamSpeak 3 in `Program Files`. If it is installed to `AppData` instead, the script will not find it.
+
+### Critical Step 2 — Accept the Default Installation Path
+
+Do not change the installation path. Accept it exactly as the installer presents it. The default path will read:
+
+```         
+C:\Program Files\TeamSpeak 3 Client
+```
+
+Leave this unchanged and click **Next** or **Install**.
+
+### Critical Step 3 — Complete the Installation
+
+Proceed through any remaining installer screens and allow the installation to complete. You do not need to launch TeamSpeak 3 from the installer at the end.
+
+## Verifying the Installation
+
+Verify that TeamSpeak 3 was installed correctly by attempting to launch it. First start Arma 3 from Steam, wait for it to reach the main menu, then run:
+
+``` bash
+./Arma3Helper.sh
+```
+
+TeamSpeak 3 should open. If it does not, run the debug command and check that the TS3 executable path is correct:
+
+``` bash
+./Arma3Helper.sh debug
+```
+
+Look for the line labelled **TS3 executable found**. If it reads `NO`, TeamSpeak 3 was not installed to the expected path. The most common cause is selecting "Install for current user only" instead of "Install for All Users" during installation.
+
+## Configuring TeamSpeak 3 After Installation
+
+Once TeamSpeak 3 is running, perform the following configuration before connecting to any server.
+
+### Disable the Gamepad and Joystick Plugin
+
+A built-in TeamSpeak 3 plugin called **Gamepad and Joystick Hotkey Support** causes TeamSpeak 3 to crash when a gamepad or joystick is connected. Disable it immediately after installation.
+
+In TeamSpeak 3, go to **Tools** → **Options** → **Addons** (or **Plugins** depending on your version). Find **Gamepad and Joystick Hotkey Support** and disable it. Save the settings.
+
+If you experience crashes after a few seconds of TeamSpeak 3 running, this plugin is almost certainly the cause. Even if you do not currently have a controller connected, disable it as a precaution.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 8 — ACRE2 Configuration
+
+## Overview
+
+ACRE2 provides the most realistic radio simulation available for Arma 3. It models individual radio types with accurate transmission properties. This chapter covers installation and verification of the ACRE2 plugin.
+
+## Required Mods
+
+ACRE2 requires the following mods to be active:
+
+| Mod | Steam Workshop ID | Purpose |
+|----------------|--------------------------------------|------------------|
+| CBA_A3 | 450814997 | Community Base Addons. Required by most Arma mods. |
+| ACRE2 | 751965892 | The radio simulation mod itself. |
+
+Subscribe to both mods in the Steam Workshop or through the Arma 3 Unix Launcher. Ensure they are enabled in your mod list before launching.
+
+## How ACRE2 Installs Its Plugin
+
+ACRE2 attempts to install its TeamSpeak plugin automatically. When you launch Arma 3 with ACRE2 active, the mod detects the TeamSpeak 3 installation inside the Wine prefix and copies the plugin files there.
+
+A pop-up window will appear on the first run confirming the installation. If the pop-up does not appear, or if TeamSpeak 3 cannot load the plugin, the manual installation described below may be attempted as a last resort.
+
+## Manual Plugin Installation (Unrecommended Last Resort)
+
+**Warning:** Manual installation is not suggested and should only be attempted if the automatic process fails. Incorrectly placing files can cause plugin conflicts.
+
+Navigate to the ACRE2 mod folder in your Steam library:
+```
+<SteamLibrary>/steamapps/workshop/content/107410/751965892/plugin/
+```
+
+Inside, you will find the required DLL files:
+```
+acre2_win32.dll
+acre2_win64.dll
+```
+
+Copy these DLL files directly to the TeamSpeak 3 plugins directory inside the Wine prefix:
+
+```bash
+# Identify your compatdata path:
+./Arma3Helper.sh debug | grep "COMPAT_DATA_PATH"
+
+# Copy the files (replace path with your real location):
+cp acre2_win32.dll acre2_win64.dll \
+    "$HOME/.steam/steam/steamapps/compatdata/107410/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins/"
+```
+
+If your Arma 3 is on an external drive, use the path shown by the debug command rather than the example above.
+## Verifying ACRE2
+
+Follow this sequence to verify ACRE2 is working:
+
+1.  Start TeamSpeak 3 using `./Arma3Helper.sh` and connect to a server.
+2.  Launch Arma 3 with CBA_A3 and ACRE2 active.
+3.  Wait for the main menu to load. Arma will attempt plugin installation.
+4.  Switch back to TeamSpeak 3. Go to **Tools** → **Options** → **Addons**.
+5.  Confirm the ACRE2 plugin is listed and enabled. **Important:** Plugins are typically enabled by default. If you see the plugin is already enabled, do **not** click "Enable," as this will toggle it off. If the plugin is not working, verify it is truly enabled in this menu.
+
+
+If the plugin is listed but not working, verify that both Arma 3 and TeamSpeak 3 are running under the same user account. They should not be run with different permission levels (for example, one as root and one as a normal user).
+
+## ACRE2 In-Game Settings
+
+ACRE2 settings are accessible in-game through the CBA Settings System. Press **Escape** and navigate to **Configure** → **Addon Options** → **ACRE2**. Common settings include:
+
+- **Radio Volume**: Controls the in-ear radio volume.
+- **Speaker Volume**: Volume of radio traffic from players physically nearby.
+- **Babel Languages**: Can be configured by mission makers.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 9 — TFAR Configuration
+
+## Overview
+
+TFAR simulates military radio communication through TeamSpeak 3. Unlike ACRE2, TFAR does not install its plugin automatically. You must copy the plugin files manually. This chapter explains the process step by step.
+
+## Required Mods
+
+TFAR requires the following mod:
+
+| Mod                                  | Steam Workshop ID | Purpose       |
+|--------------------------------------|-------------------|---------------|
+| Task Force Arrowhead Radio (BETA!!!) | 894678801         | The TFAR mod. |
+
+Some communities use an older version of TFAR (Workshop ID: 620019431). Check with your unit which version they use before subscribing.
+
+TFAR does not require CBA_A3 in all versions, but most TFAR-using communities run CBA_A3 alongside it. Confirm with your unit.
+
+## Locating the TFAR Plugin File
+
+After subscribing to TFAR via the Steam Workshop, the mod files will be downloaded to:
+
+```         
+<SteamLibrary>/steamapps/workshop/content/107410/894678801/
+```
+
+Inside the mod folder, navigate to the `teamspeak/` subdirectory:
+
+``` bash
+ls <SteamLibrary>/steamapps/workshop/content/107410/894678801/teamspeak/
+```
+
+You will find a file named `task_force_radio.ts3plugin`. This is the plugin archive.
+
+## Extracting the Plugin Files
+
+The `.ts3plugin` file is a standard ZIP archive with a renamed extension. Extract it using any archive tool.
+
+``` bash
+# Using unzip (rename the extension first, or use -O to override):
+cp task_force_radio.ts3plugin task_force_radio.zip
+unzip task_force_radio.zip -d tfar_plugin
+
+# Or directly with many archive managers by right-clicking the file.
+```
+
+Inside the extracted archive, navigate to the `plugins/` folder. You will find the following files and directories:
+
+```         
+plugins/
+├── TFAR_win32.dll
+├── TFAR_win64.dll
+└── radio-sounds/
+└── (audio files)
+```
+
+You need to copy all three items — both DLL files and the `radio-sounds` folder — to the TeamSpeak 3 plugins directory.
+
+## Copying Plugin Files to the TeamSpeak 3 Directory
+
+First, determine the exact path to Arma 3's compatdata:
+
+``` bash
+./Arma3Helper.sh debug | grep "COMPAT_DATA_PATH"
+```
+
+The TeamSpeak 3 plugins directory is located at:
+
+```         
+<COMPAT_DATA_PATH>/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins/
+```
+
+Copy the plugin files. Replace `<COMPAT_DATA_PATH>` with the actual path shown by the debug command:
+
+``` bash
+# Example path — adjust to match your system:
+PLUGINS_DIR="$HOME/.steam/steam/steamapps/compatdata/107410/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+
+# Copy the DLL files and the audio folder:
+cp TFAR_win32.dll TFAR_win64.dll "$PLUGINS_DIR/"
+cp -r radio-sounds/ "$PLUGINS_DIR/"
+```
+
+Verify the copy was successful:
+
+``` bash
+ls "$PLUGINS_DIR/"
+# Expected output should include:
+# TFAR_win32.dll  TFAR_win64.dll  radio-sounds/
+```
+
+## Enabling the TFAR Plugin
+
+Launch TeamSpeak 3 using the Arma3Helper script:
+
+```bash
+./Arma3Helper.sh
+```
+
+In TeamSpeak 3, go to **Tools** → **Options** → **Addons** (or **Plugins**). You should see the TFAR plugin listed.
+
+**Important:** Plugins are typically enabled by default. If you see the plugin is already enabled, do **not** click "Enable," as this will toggle it off. If the plugin is not working, verify it is truly enabled in this menu.
+
+If the plugin does not appear, check that the files were copied to the correct directory. The plugins folder path is case-sensitive on Linux. Ensure `Program Files` is capitalised correctly.
+
+
+## Verifying TFAR
+
+Follow this sequence to verify TFAR is working:
+
+1.  Start TeamSpeak 3 using `./Arma3Helper.sh` and connect to a server.
+2.  Confirm the TFAR plugin shows as active in TeamSpeak.
+3.  Launch Arma 3 with the TFAR mod active.
+4.  Load into a mission. The TFAR status indicator should appear.
+5.  Open the radio shortwave interface with the default keybind.
+
+You should hear radio traffic through TeamSpeak once TFAR connects. If you can hear others but they cannot hear you, check your microphone settings in TeamSpeak and your push-to-talk keybinding.
+
+## TFAR-Specific Notes
+
+TFAR works differently on dedicated servers. The server must also run the TFAR server plugin. Contact your server administrator if in-game radios appear to work but no audio is transmitted.
+
+TFAR's frequency management is handled through the in-game radio interface. Consult your community's standard operating procedures for frequency assignment.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 10 — Troubleshooting
+
+## Audio Problems
+
+### No Sound or Distorted Audio
+
+If Arma 3 has no sound or distorted audio, ensure GStreamer and its 32-bit equivalents are installed (Chapter 2). Then run:
+
+``` bash
+./Arma3Helper.sh winetricks Arma
+```
+
+This installs the XACT and XAudio2 components that Arma 3 requires.
+
+### Audio Crackling at High Volumes
+
+This problem is common with Proton 7.0 and earlier. Two solutions are available.
+
+**Option A** — Add to Arma 3's Steam launch options:
+
+```         
+WINEDLLOVERRIDES="xaudio2_7=n" %command%
+```
+
+**Option B** — Set it through winecfg:
+
+``` bash
+./Arma3Helper.sh winecfg
+```
+
+Navigate to the **Libraries** tab and add `xaudio2_7` with the override set to **Native**.
+
+Both options achieve the same result. Option A is simpler.
+
+## Arma 3 Crashes on Startup
+
+A crash immediately after launch, before the main menu appears, usually indicates missing Vulkan support. Install the appropriate package (Chapter 2, section 2.11).
+
+After installing, verify Vulkan is working:
+
+``` bash
+vulkaninfo 2>&1 | head -20
+```
+
+If `vulkaninfo` reports errors about a missing GPU or driver, your graphics driver may need updating.
+
+## TeamSpeak 3 Crashes After a Few Seconds
+
+This is almost always caused by the Gamepad and Joystick Hotkey Support plugin. Disable it as described in Chapter 7, step 7.16.
+
+The crash occurs specifically when a controller, joystick, or other HID device is connected. Unplugging the device temporarily will also stop the crash, but disabling the plugin is the correct solution.
+
+## ACRE2 Plugin Not Found by TeamSpeak
+
+If TeamSpeak 3 cannot load the ACRE2 plugin, check the following:
+
+- Arma 3 was launched with ACRE2 and CBA_A3 active.
+- Both Arma 3 and TeamSpeak 3 are running as the same user.
+- The plugin files exist in the TeamSpeak plugins directory (Chapter 8).
+
+Run the manual plugin installation described in Chapter 8 if the automatic process has failed.
+
+## TFAR Plugin Missing from TeamSpeak
+
+If the TFAR plugin does not appear in TeamSpeak 3 after copying the files, verify the following:
+
+- Both `TFAR_win32.dll` and `TFAR_win64.dll` are present in the plugins folder.
+- The `radio-sounds` folder is also present.
+- The path used was correct. Run `./Arma3Helper.sh debug` to confirm the COMPAT_DATA_PATH.
+
+Check that file permissions allow reading:
+
+``` bash
+ls -la "$HOME/.steam/steam/steamapps/compatdata/107410/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins/"
+```
+
+## ACRE2 and TeamSpeak Are Not Connecting
+
+The message "ACRE is not connected to TeamSpeak" appears in-game if Arma 3 and TeamSpeak 3 are not sharing the same Wine environment. Always use the Arma3Helper script to launch TeamSpeak 3. Never launch it independently.
+
+The correct sequence is:
+
+1.  Launch Arma 3 from Steam.
+2.  Wait for Arma 3 to reach the main menu.
+3.  Run `./Arma3Helper.sh` in a terminal.
+4.  Wait for TeamSpeak 3 to open.
+5.  Connect to the TeamSpeak server.
+6.  Load into the mission.
+
+## Script Cannot Find TeamSpeak 3
+
+If the script reports that TeamSpeak 3 is not found, run the debug command and check the reported path:
+
+``` bash
+./Arma3Helper.sh debug
+```
+
+The debug output shows the expected TeamSpeak 3 path. Verify the file exists at that location:
+
+``` bash
+ls -la "/path/shown/in/debug/output/ts3client_win64.exe"
+```
+
+If the file is in `AppData` rather than `Program Files`, TeamSpeak 3 was installed as "current user only". Uninstall it and repeat the installation process (Chapter 7), selecting "Install for All Users".
+
+## Getting Further Help
+
+If this troubleshooting chapter does not resolve your problem, gather diagnostic information and ask for help on the ArmaOnUnix Discord:
+
+``` bash
+./Arma3Helper.sh debug
+./Arma3Helper.sh checkdeps
+```
+
+Copy the output of both commands and include it when asking for help. This information allows others to diagnose the problem quickly.
+
+**Do not open a GitHub issue** before asking on the Discord. Most problems are configuration issues that the community can resolve rapidly. GitHub issues are reserved for confirmed bugs.
+
+[Discord: https://discord.gg/p28Ra36](https://discord.gg/p28Ra36)
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Chapter 11 — Performance Optimisation
+
+## Arma 3 Launch Parameters
+
+Arma 3 supports a range of launch parameters that can improve performance. Add them in the Arma 3 Unix Launcher or in Steam's **Launch Options** field (Chapter 3, step 3.14).
+
+The following parameters are recommended. Not all will benefit every system. Try them individually to identify which help your configuration.
+
+| Parameter | Effect |
+|-----------------------------------------|-------------------------------|
+| `-noSplash` | Skips opening splash screens. Reduces startup time. |
+| `-skipIntro` | Shows a static main menu background. Minor startup speedup. |
+| `-world=empty` | Loads an empty world for the main menu. Significant startup speedup. |
+| `-exThreads=7` | Offloads work to additional threads. Best for 4+ core CPUs. Use `3` for 2-core CPUs. |
+| `-enableHT` | Uses logical cores in addition to physical cores. Test whether this helps or harms your system. |
+| `-hugepages` | Enables large memory pages for allocation. Test on your system. |
+| `-noLogs` | Disables log writing. Slight performance gain. Disable this when troubleshooting. |
+
+The parameter `-cpuCount=1` is sometimes recommended for fixing certain crashes, but it significantly reduces performance. Try it only if other solutions have failed.
+
+## General Linux Gaming Optimisations
+
+The following are not Arma-specific but apply broadly to Linux gaming.
+
+### Kernel Scheduling
+
+A custom kernel can provide meaningful performance improvements. The `linux-tkg` project on GitHub offers kernel builds optimised for gaming. This is an advanced option. Research it before attempting it.
+
+### GameMode
+
+**GameMode** (by Feral Interactive) automatically applies performance tweaks when a game runs. It adjusts CPU governor, process scheduling, and other settings. Install it from your package manager:
+
+``` bash
+# Arch Linux:
+sudo pacman -S gamemode
+
+# Debian/Ubuntu:
+sudo apt install gamemode
+
+# Fedora:
+sudo dnf install gamemode
+```
+
+Enable it by adding `gamemoderun %command%` to Arma 3's Steam launch options.
+
+### MangoHud
+
+**MangoHud** provides an in-game performance overlay for Linux. It displays frame rate, frame time, CPU and GPU usage, and temperatures. It is useful for measuring the effect of any optimisation changes.
+
+``` bash
+# Arch Linux:
+sudo pacman -S mangohud
+
+# Debian/Ubuntu:
+sudo apt install mangohud
+
+# Fedora:
+sudo dnf install mangohud
+```
+
+Enable it by adding `MANGOHUD=1 %command%` to the Steam launch options.
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Annex A — Glossary
+
+| Term | Definition |
+|------------------------|-----------------------------------------------|
+| **ACRE2** | Advanced Combat Radio Environment 2. An Arma 3 mod simulating military radio communications. |
+| **AppData** | A Windows user-specific folder for application data. Located at `C:\Users\<name>\AppData\`. |
+| **CBA_A3** | Community Base Addons for Arma 3. A library of functions and systems used by many mods. |
+| **compatdata** | The directory containing a game's Wine prefix. Named after "compatibility data". |
+| **Esync/Fsync** | Optimisations that reduce CPU overhead in Wine by replacing kernel synchronisation primitives with user-space equivalents. |
+| **GE-Proton** | Glorious Eggroll Proton. A community-maintained Proton build with additional patches. |
+| **GStreamer** | An open-source multimedia framework. Arma 3 uses it for audio. |
+| **Proton** | Valve's compatibility layer for running Windows games on Linux. |
+| **protontricks** | A wrapper around winetricks that automatically sets the correct Wine prefix for a Steam game. |
+| **Steam App ID** | A unique number identifying a game on Steam. Arma 3's App ID is 107410. |
+| **TFAR** | Task Force Arrowhead Radio. An Arma 3 mod providing radio simulation via TeamSpeak 3. |
+| **Wine** | An open-source compatibility layer that translates Windows API calls to Linux. |
+| **Wine prefix** | An isolated Windows environment created by Wine. Each game typically has its own prefix. |
+| **winetricks** | A script that automates the installation of Windows components into a Wine prefix. |
+| **Workshop ID** | A unique number identifying a mod on the Steam Workshop. |
+
+------------------------------------------------------------------------
+
+\newpage
+
+# Annex B — Quick Reference Commands
+
+## First-Time Setup (in order)
+
+``` bash
+# 1. Download the script
+curl -o ~/Arma3Helper.sh \
+https://raw.githubusercontent.com/ninelore/armaonlinux/master/Arma3Helper.sh
+chmod +x ~/Arma3Helper.sh
+
+# 2. Create the config file
+./Arma3Helper.sh createconfig
+
+# 3. Edit the config file and set your Proton version
+nano ~/.config/arma3helper/config
+
+# 4. Check dependencies
+./Arma3Helper.sh checkdeps
+
+# 5. Install Windows components (after first Arma launch)
+./Arma3Helper.sh winetricks Arma
+
+# 6. Install TeamSpeak 3 (after downloading the Windows installer)
+./Arma3Helper.sh install ~/Downloads/TeamSpeak3-Client-win64-3.x.x.exe
+```
+
+## Daily Usage
+
+``` bash
+# Start Arma 3 from Steam, wait for main menu, then:
+./Arma3Helper.sh
+```
+
+## TFAR Plugin Installation Path
+
+``` bash
+# Adjust to your actual compatdata path — check with debug first:
+./Arma3Helper.sh debug | grep COMPAT_DATA_PATH
+
+# Then copy TFAR files (example path — substitute your real path):
+PLUGINS="$HOME/.steam/steam/steamapps/compatdata/107410/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+cp TFAR_win32.dll TFAR_win64.dll "$PLUGINS/"
+cp -r radio-sounds/ "$PLUGINS/"
+```
+
+## Troubleshooting Commands
+
+``` bash
+# Full diagnostic output (share this when asking for help):
+./Arma3Helper.sh debug
+
+# Dependency check:
+./Arma3Helper.sh checkdeps
+
+# List Proton versions:
+./Arma3Helper.sh listproton
+
+# Fix audio issues:
+./Arma3Helper.sh winetricks Arma
+
+# Open Wine config:
+./Arma3Helper.sh winecfg
+```
+
+\newpage
+\thispagestyle{empty}
+\begin{center}
+    \vspace*{\fill}
+    \textbf{UKSF Taskforce Alpha Development Team} \\
+    \vspace{0.3cm}
+    This documentation is based on the original guide by Ingo Reitz (ninelore). \\
+    \vspace{0.3cm}
+    \textbf{Support:} \href{https://discord.gg/p28Ra36}{https://discord.gg/p28Ra36} \\
+    \vspace{0.3cm}
+    \textit{Content: CC BY-SA 4.0 | Code: GNU AGPL 3.0}
+    \vspace*{\fill}
+    \end{center}

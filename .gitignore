@@ -1,0 +1,26 @@
+# Temporary build/render files
+_book/
+_site/
+.quarto/
+*.html
+*.pdf
+*.log
+*.aux
+*.out
+*.toc
+*.tex
+
+# Local config/cache
+.config/
+config
+version
+.markdownlint.json
+.prettierrc
+node_modules/
+.cache/
+arma3-linux-guide_files
+
+# OS files
+.DS_Store
+Thumbs.db
+EOF
