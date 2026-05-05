@@ -13,14 +13,32 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
+      # 1. Install everything via apt-get (Reliable & Versions match)
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pandoc \
+            texlive-xetex \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            texlive-fonts-recommended \
+            texlive-fonts-extra \
+            texlive-plain-generic \
+            lmodern \
+            curl
 
-      - name: Install TinyTeX
-        uses: quarto-dev/quarto-actions/tinytex@v1
+      # 2. Install Quarto (This part is working great)
+      - name: Install Quarto
+        run: |
+          QUARTO_VERSION="1.4.550"
+          curl -LO https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb
+          sudo dpkg -i quarto-${QUARTO_VERSION}-linux-amd64.deb
+
+      # REMOVE the "Install specific LaTeX packages" step entirely
 
       - name: Render Quarto
-        run: quarto render arma3-linux-guide.qmd
+        run: quarto render arma3-linux-guide.qmd --to all
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
