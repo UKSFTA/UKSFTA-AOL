@@ -32,25 +32,6 @@ format:
     documentclass: article
     classoption: oneside
     geometry: "left=2cm,right=2cm,top=2.5cm,bottom=2.5cm"
-    include-in-header:
-      text: |
-        \usepackage{microtype}
-        \usepackage{setspace}
-        \usepackage{xcolor}
-        \usepackage{afterpage}
-        \setstretch{1.15}
-        \tolerance=1000
-        \emergencystretch=2em
-        \hyphenpenalty=500
-        \usepackage{graphicx}
-        % Force all images/figures to fit within text width
-        \makeatletter
-        \def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
-        \def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
-        \definecolor{covercolor}{HTML}{1e1e1e}
-        \makeatother
-        \let\oldincludegraphics\includegraphics
-        \renewcommand{\includegraphics}[2][]{\oldincludegraphics[width=\maxwidth,height=\maxheight,keepaspectratio]{#2}}
 ---
 # Preface {.unnumbered}
 
@@ -87,8 +68,6 @@ This guide does not cover:
 This repository is a community-maintained fork of the original `armaonlinux` project. It was developed by members of our milsim community to provide enhanced documentation, improved installation scripts, and better support for custom configurations.
 
 While created to streamline the onboarding process for our own members, we have made this public to support the wider Arma on Linux/Unix community. Our goal is to provide a comprehensive, professional resource that allows anyone, regardless of experience level, to successfully play Arma 3 on Linux.
-
-------------------------------------------------------------------------
 
 \newpage
 
@@ -127,8 +106,6 @@ ACRE2 and TFAR serve the same purpose but are incompatible with each other. A co
 ## Why Not Use Native Linux TeamSpeak?
 
 The ACRE2 and TFAR plugins are compiled for Windows. They cannot load into the native Linux TeamSpeak client. The only supported approach is to run the Windows version of TeamSpeak 3 inside Arma's Wine prefix. The Arma3Helper script automates this.
-
-------------------------------------------------------------------------
 
 \newpage
 
@@ -292,8 +269,6 @@ pip install protontricks --break-system-packages
 sudo dnf install winetricks
 ```
 
-------------------------------------------------------------------------
-
 \newpage
 
 # Chapter 3 — Steam and Proton Configuration
@@ -370,8 +345,6 @@ Tools such as **ProtonUp-Qt** and **ProtonPlus** simplify the installation of GE
 
 Once a custom build is installed, you can select it in Steam under the **Compatibility** tab for Arma 3. The Arma3Helper script can also use it. Run `./Arma3Helper.sh listproton` to see all installed versions.
 
-------------------------------------------------------------------------
-
 \newpage
 
 # Chapter 4 — Installing Arma 3
@@ -409,8 +382,6 @@ Install the Arma 3 Unix Launcher from one of the following sources:
 - **.deb or .AppImage**: [Download from GitHub](https://github.com/muttleyxd/arma3-unix-launcher/releases/latest)
 
 To open a mod preset, right-click on the mod list in the Unix Launcher. You can disable all mods from the right-click menu before loading a different preset.
-
-------------------------------------------------------------------------
 
 \newpage
 
@@ -513,21 +484,17 @@ The check reports the status of all required packages. If any are missing, it pr
 
 The following commands are available. Run `./Arma3Helper.sh help` to see this list at any time.
 
-| Command | Description |
-|------------------------------|------------------------------------------|
-| `./Arma3Helper.sh` | Launch TeamSpeak 3 (start Arma first) |
-| `./Arma3Helper.sh install <exe>` | Install TeamSpeak 3 into the prefix |
-| `./Arma3Helper.sh winetricks Arma` | Install recommended DLLs |
-| `./Arma3Helper.sh winetricks <args>` | Run any winetricks command |
-| `./Arma3Helper.sh winecfg` | Open Wine configuration |
-| `./Arma3Helper.sh checkdeps` | Check required packages |
-| `./Arma3Helper.sh listproton` | List available Proton versions |
-| `./Arma3Helper.sh debug` | Print diagnostic information |
-| `./Arma3Helper.sh update` | Update script from GitHub |
-| `./Arma3Helper.sh createconfig` | Create external config file |
-| `./Arma3Helper.sh help` | Show usage information |
-
-------------------------------------------------------------------------
+- **`./Arma3Helper.sh`**: Launch TeamSpeak 3 (start Arma first)
+- **`./Arma3Helper.sh install <exe>`**: Install TeamSpeak 3 into the prefix
+- **`./Arma3Helper.sh winetricks Arma`**: Install recommended DLLs
+- **`./Arma3Helper.sh winetricks <args>`**: Run any winetricks command
+- **`./Arma3Helper.sh winecfg`**: Open Wine configuration
+- **`./Arma3Helper.sh checkdeps`**: Check required packages
+- **`./Arma3Helper.sh listproton`**: List available Proton versions
+- **`./Arma3Helper.sh debug`**: Print diagnostic information
+- **`./Arma3Helper.sh update`**: Update script from GitHub
+- **`./Arma3Helper.sh createconfig`**: Create external config file
+- **`./Arma3Helper.sh help`**: Show usage information
 
 \newpage
 
@@ -545,19 +512,15 @@ Run:
 
 This installs the following components into Arma's Wine prefix:
 
-| Component        | Purpose                                                  |
-|---------------------------------------|---------------------------------|
-| `d3dcompiler_43` | DirectX shader compiler. Fixes certain rendering issues. |
-| `d3dx10_43`      | DirectX 10 runtime. Required by some mods.               |
-| `d3dx11_43`      | DirectX 11 runtime. Required by some mods.               |
-| `xact_x64`       | Microsoft XACT audio engine. Fixes audio problems.       |
-| `xaudio29`       | XAudio2 library. Fixes audio crackling at high volume.   |
+- **`d3dcompiler_43`**: DirectX shader compiler. Fixes certain rendering issues.
+- **`d3dx10_43`     **: DirectX 10 runtime. Required by some mods.              
+- **`d3dx11_43`     **: DirectX 11 runtime. Required by some mods.              
+- **`xact_x64`      **: Microsoft XACT audio engine. Fixes audio problems.      
+- **`xaudio29`      **: XAudio2 library. Fixes audio crackling at high volume.  
 
 The installation may take several minutes. Do not interrupt it. A slow internet connection will extend the time needed.
 
 After completion, launch Arma 3 once to verify the game works correctly. Check that audio functions as expected. If thermal vision effects are broken in-game, this step resolves that as well.
-
-------------------------------------------------------------------------
 
 \newpage
 
@@ -571,7 +534,7 @@ The native Linux TeamSpeak 3 client cannot load the ACRE2 or TFAR Windows plugin
 
 ## Downloading TeamSpeak 3
 
-7.3. Download the TeamSpeak 3 Windows installer from the [official website](https://www.teamspeak.com/en/downloads/).
+7.3. Download the TeamSpeak 3 Windows installer from the [official website](https://www.teamspeak.com/en/downloads/#ts3client).
 
 7.4. Select the **Windows** version. Choose the **64-bit** installer. The filename will resemble `TeamSpeak3-Client-win64-3.x.x.exe`. Save it to a convenient location such as your Downloads folder.
 
@@ -650,8 +613,6 @@ In TeamSpeak 3, go to **Tools** → **Options** → **Addons** (or **Plugins** d
 
 If you experience crashes after a few seconds of TeamSpeak 3 running, this plugin is almost certainly the cause. Even if you do not currently have a controller connected, disable it as a precaution.
 
-------------------------------------------------------------------------
-
 \newpage
 
 # Chapter 8 — ACRE2 Configuration
@@ -664,10 +625,8 @@ ACRE2 provides the most realistic radio simulation available for Arma 3. It mode
 
 ACRE2 requires the following mods to be active:
 
-| Mod | Steam Workshop ID | Purpose |
-|----------------|--------------------------------------|------------------|
-| CBA_A3 | 450814997 | Community Base Addons. Required by most Arma mods. |
-| ACRE2 | 751965892 | The radio simulation mod itself. |
+- **CBA_A3** (Workshop ID: 450814997): Community Base Addons. Required by most Arma mods.
+- **ACRE2** (Workshop ID: 751965892): The radio simulation mod itself.
 
 Subscribe to both mods in the Steam Workshop or through the Arma 3 Unix Launcher. Ensure they are enabled in your mod list before launching.
 
@@ -725,8 +684,6 @@ ACRE2 settings are accessible in-game through the CBA Settings System. Press **E
 - **Speaker Volume**: Volume of radio traffic from players physically nearby.
 - **Babel Languages**: Can be configured by mission makers.
 
-------------------------------------------------------------------------
-
 \newpage
 
 # Chapter 9 — TFAR Configuration
@@ -739,9 +696,7 @@ TFAR simulates military radio communication through TeamSpeak 3. Unlike ACRE2, T
 
 TFAR requires the following mod:
 
-| Mod                                  | Steam Workshop ID | Purpose       |
-|--------------------------------------|-------------------|---------------|
-| Task Force Arrowhead Radio (BETA!!!) | 894678801         | The TFAR mod. |
+- **Task Force Arrowhead Radio (BETA!!!)** (Workshop ID: 894678801): The main TFAR mod.
 
 Some communities use an older version of TFAR (Workshop ID: 620019431). Check with your unit which version they use before subscribing.
 
@@ -852,8 +807,6 @@ You should hear radio traffic through TeamSpeak once TFAR connects. If you can h
 TFAR works differently on dedicated servers. The server must also run the TFAR server plugin. Contact your server administrator if in-game radios appear to work but no audio is transmitted.
 
 TFAR's frequency management is handled through the in-game radio interface. Consult your community's standard operating procedures for frequency assignment.
-
-------------------------------------------------------------------------
 
 \newpage
 
@@ -973,11 +926,9 @@ If this troubleshooting chapter does not resolve your problem, gather diagnostic
 
 Copy the output of both commands and include it when asking for help. This information allows others to diagnose the problem quickly.
 
-**Do not open a GitHub issue** before asking on the Discord. Most problems are configuration issues that the community can resolve rapidly. GitHub issues are reserved for confirmed bugs.
+**Do not open a GitHub issue** before asking on the Discord. Most problems are configuration issues that the community can resolve rapidly. GitHub issues are reserved for confirmed bugs. Note, this discord is not run by the script author but by volunteers from the community. Be patient and respectful when asking for help, this also is not related to UKSF Taskforce Alpha in any way.
 
 [Discord: https://discord.gg/p28Ra36](https://discord.gg/p28Ra36)
-
-------------------------------------------------------------------------
 
 \newpage
 
@@ -989,15 +940,13 @@ Arma 3 supports a range of launch parameters that can improve performance. Add t
 
 The following parameters are recommended. Not all will benefit every system. Try them individually to identify which help your configuration.
 
-| Parameter | Effect |
-|-----------------------------------------|-------------------------------|
-| `-noSplash` | Skips opening splash screens. Reduces startup time. |
-| `-skipIntro` | Shows a static main menu background. Minor startup speedup. |
-| `-world=empty` | Loads an empty world for the main menu. Significant startup speedup. |
-| `-exThreads=7` | Offloads work to additional threads. Best for 4+ core CPUs. Use `3` for 2-core CPUs. |
-| `-enableHT` | Uses logical cores in addition to physical cores. Test whether this helps or harms your system. |
-| `-hugepages` | Enables large memory pages for allocation. Test on your system. |
-| `-noLogs` | Disables log writing. Slight performance gain. Disable this when troubleshooting. |
+- **`-noSplash`**: Skips opening splash screens. Reduces startup time.
+- **`-skipIntro`**: Shows a static main menu background. Minor startup speedup.
+- **`-world=empty`**: Loads an empty world for the main menu. Significant startup speedup.
+- **`-exThreads=7`**: Offloads work to additional threads. Best for 4+ core CPUs. Use `3` for 2-core CPUs.
+- **`-enableHT`**: Uses logical cores in addition to physical cores. Test whether this helps or harms your system.
+- **`-hugepages`**: Enables large memory pages for allocation. Test on your system.
+- **`-noLogs`**: Disables log writing. Slight performance gain. Disable this when troubleshooting.
 
 The parameter `-cpuCount=1` is sometimes recommended for fixing certain crashes, but it significantly reduces performance. Try it only if other solutions have failed.
 
@@ -1043,31 +992,25 @@ sudo dnf install mangohud
 
 Enable it by adding `MANGOHUD=1 %command%` to the Steam launch options.
 
-------------------------------------------------------------------------
-
 \newpage
 
 # Annex A — Glossary
 
-| Term | Definition |
-|------------------------|-----------------------------------------------|
-| **ACRE2** | Advanced Combat Radio Environment 2. An Arma 3 mod simulating military radio communications. |
-| **AppData** | A Windows user-specific folder for application data. Located at `C:\Users\<name>\AppData\`. |
-| **CBA_A3** | Community Base Addons for Arma 3. A library of functions and systems used by many mods. |
-| **compatdata** | The directory containing a game's Wine prefix. Named after "compatibility data". |
-| **Esync/Fsync** | Optimisations that reduce CPU overhead in Wine by replacing kernel synchronisation primitives with user-space equivalents. |
-| **GE-Proton** | Glorious Eggroll Proton. A community-maintained Proton build with additional patches. |
-| **GStreamer** | An open-source multimedia framework. Arma 3 uses it for audio. |
-| **Proton** | Valve's compatibility layer for running Windows games on Linux. |
-| **protontricks** | A wrapper around winetricks that automatically sets the correct Wine prefix for a Steam game. |
-| **Steam App ID** | A unique number identifying a game on Steam. Arma 3's App ID is 107410. |
-| **TFAR** | Task Force Arrowhead Radio. An Arma 3 mod providing radio simulation via TeamSpeak 3. |
-| **Wine** | An open-source compatibility layer that translates Windows API calls to Linux. |
-| **Wine prefix** | An isolated Windows environment created by Wine. Each game typically has its own prefix. |
-| **winetricks** | A script that automates the installation of Windows components into a Wine prefix. |
-| **Workshop ID** | A unique number identifying a mod on the Steam Workshop. |
-
-------------------------------------------------------------------------
+- **ACRE2**: Advanced Combat Radio Environment 2. An Arma 3 mod simulating military radio communications.
+- **AppData**: A Windows user-specific folder for application data. Located at `C:\Users\<name>\AppData\`.
+- **CBA_A3**: Community Base Addons for Arma 3. A library of functions and systems used by many mods.
+- **compatdata**: The directory containing a game's Wine prefix. Named after "compatibility data".
+- **Esync/Fsync**: Optimisations that reduce CPU overhead in Wine by replacing kernel synchronisation primitives with user-space equivalents.
+- **GE-Proton**: Glorious Eggroll Proton. A community-maintained Proton build with additional patches.
+- **GStreamer**: An open-source multimedia framework. Arma 3 uses it for audio.
+- **Proton**: Valve's compatibility layer for running Windows games on Linux.
+- **protontricks**: A wrapper around winetricks that automatically sets the correct Wine prefix for a Steam game.
+- **Steam App ID**: A unique number identifying a game on Steam. Arma 3's App ID is 107410.
+- **TFAR**: Task Force Arrowhead Radio. An Arma 3 mod providing radio simulation via TeamSpeak 3.
+- **Wine**: An open-source compatibility layer that translates Windows API calls to Linux.
+- **Wine prefix**: An isolated Windows environment created by Wine. Each game typically has its own prefix.
+- **winetricks**: A script that automates the installation of Windows components into a Wine prefix.
+- **Workshop ID**: A unique number identifying a mod on the Steam Workshop.
 
 \newpage
 
