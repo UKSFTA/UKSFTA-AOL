@@ -39,10 +39,12 @@ jobs:
 
       - name: Render Quarto
         run: |
-          quarto render arma3-linux-guide.qmd --to html --output index.html
+          quarto render arma3-linux-guide.qmd --to html --output index.html --output-dir public
 
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: "public"
 
   deploy:
     environment:
