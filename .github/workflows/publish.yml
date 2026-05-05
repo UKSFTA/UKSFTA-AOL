@@ -16,6 +16,9 @@ jobs:
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
+      - name: Install TinyTeX
+        uses: quarto-dev/quarto-actions/tinytex@v1
+
       - name: Render Quarto
         run: quarto render arma3-linux-guide.qmd
 
