@@ -322,11 +322,52 @@ _find_steam_libraries() {
 # _find_arma_library
 #   Search all Steam libraries to find the one that contains Arma 3
 #   (Steam App ID 107410). Returns the path to that library's steamapps folder.
+#
+#   Detection order:
+#     1. Parse libraryfolders.vdf for the library that lists app 107410
+#        in its "apps" block (the authoritative source).
+#     2. Fall back to scanning each library for a compatdata/107410
+#        directory that actually has content (pfx/ subdirectory).
+#        An empty compatdata directory (Steam junk) is NOT a match.
 _find_arma_library() {
+    local steam_root
+    steam_root="$(_find_steam_root)"
+    local vdf=""
+
+    if [[ -f "$steam_root/config/libraryfolders.vdf" ]]; then
+        vdf="$steam_root/config/libraryfolders.vdf"
+    elif [[ -f "$steam_root/steamapps/libraryfolders.vdf" ]]; then
+        vdf="$steam_root/steamapps/libraryfolders.vdf"
+    fi
+
+    # Method 1: Parse VDF for the library that actually owns app 107410
+    if [[ -n "$vdf" ]]; then
+        local arma_lib
+        arma_lib=$(awk '
+            /"path"[[:space:]]*"/ {
+                gsub(/.*"path"[[:space:]]*"|".*/, "")
+                current = $0
+            }
+            /"107410"/ && current != "" {
+                print current
+                current = ""
+            }
+        ' "$vdf" | head -1)
+
+        if [[ -n "$arma_lib" ]]; then
+            local steamapps="$arma_lib/steamapps"
+            if [[ -d "$steamapps/compatdata/107410" ]]; then
+                echo "$steamapps"
+                return
+            fi
+        fi
+    fi
+
+    # Method 2: Scan all libraries, but require actual content (pfx/)
     while IFS= read -r lib_path; do
-        local steamapps="$lib_path/steamapps"
-        if [[ -d "$steamapps/compatdata/107410" ]]; then
-            echo "$steamapps"
+        local compatdata="$lib_path/steamapps/compatdata/107410"
+        if [[ -d "$compatdata/pfx" ]]; then
+            echo "$lib_path/steamapps"
             return
         fi
     done < <(_find_steam_libraries)
