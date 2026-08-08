@@ -31,3 +31,6 @@ EOF
 
 /.quarto/
 **/*.quarto_ipynb
+
+# Quarto PDF scratch dir
+_guide-pdf/
