@@ -23,4 +23,8 @@ arma3-linux-guide_files
 # OS files
 .DS_Store
 Thumbs.db
+
+# Tooling session state
+.omo/
+.opencode/
 EOF

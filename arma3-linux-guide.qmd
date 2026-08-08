@@ -491,6 +491,7 @@ The following commands are available. Run `./Arma3Helper.sh help` to see this li
 - **`./Arma3Helper.sh winecfg`**: Open Wine configuration
 - **`./Arma3Helper.sh checkdeps`**: Check required packages
 - **`./Arma3Helper.sh listproton`**: List available Proton versions
+- **`./Arma3Helper.sh launchopts`**: Ensure Arma's Steam launch options expose the host paths ACRE2/TFAR need (required since Steam Linux Runtime 4 isolates the game container)
 - **`./Arma3Helper.sh debug`**: Print diagnostic information
 - **`./Arma3Helper.sh update`**: Update script from GitHub
 - **`./Arma3Helper.sh createconfig`**: Create external config file
@@ -611,7 +612,7 @@ A built-in TeamSpeak 3 plugin called **Gamepad and Joystick Hotkey Support** cau
 
 In TeamSpeak 3, go to **Tools** → **Options** → **Addons** (or **Plugins** depending on your version). Find **Gamepad and Joystick Hotkey Support** and disable it. Save the settings.
 
-If you experience crashes after a few seconds of TeamSpeak 3 running, this plugin is almost certainly the cause. Even if you do not currently have a controller connected, disable it as a precaution.
+If you experience crashes after a few seconds of TeamSpeak 3 running, this plugin is almost certainly the cause. Even if you do not currently have a controller connected, disable it as a precaution. Bluetooth controllers also trigger the crash — for example, a paired Stadia controller will crash TeamSpeak 3 even when it is not in use.
 
 \newpage
 
@@ -860,7 +861,7 @@ If `vulkaninfo` reports errors about a missing GPU or driver, your graphics driv
 
 This is almost always caused by the Gamepad and Joystick Hotkey Support plugin. Disable it as described in Chapter 7, step 7.16.
 
-The crash occurs specifically when a controller, joystick, or other HID device is connected. Unplugging the device temporarily will also stop the crash, but disabling the plugin is the correct solution.
+The crash occurs specifically when a controller, joystick, or other HID device is connected. Wireless controllers count too: a Bluetooth controller such as a Stadia controller triggers the crash even when it is not in use. Unplugging or unpairing the device temporarily will also stop the crash, but disabling the plugin is the correct solution.
 
 ## ACRE2 Plugin Not Found by TeamSpeak
 
@@ -888,7 +889,11 @@ ls -la "$HOME/.steam/steam/steamapps/compatdata/107410/pfx/drive_c/Program Files
 
 ## ACRE2 and TeamSpeak Are Not Connecting
 
-The message "ACRE is not connected to TeamSpeak" appears in-game if Arma 3 and TeamSpeak 3 are not sharing the same Wine environment. Always use the Arma3Helper script to launch TeamSpeak 3. Never launch it independently.
+The message "ACRE is not connected to TeamSpeak" appears in-game when Arma 3 and TeamSpeak 3 cannot communicate. There are two known causes.
+
+### Cause 1 — TeamSpeak Not Sharing Arma's Wine Environment
+
+Arma 3 and TeamSpeak 3 must share the same Wine prefix. Always use the Arma3Helper script to launch TeamSpeak 3. Never launch it independently.
 
 The correct sequence is:
 
@@ -898,6 +903,24 @@ The correct sequence is:
 4.  Wait for TeamSpeak 3 to open.
 5.  Connect to the TeamSpeak server.
 6.  Load into the mission.
+
+### Cause 2 — Steam Linux Runtime Container Isolation
+
+Newer versions of Steam Linux Runtime 4 (pressure-vessel) isolate `/tmp` and `/home` inside each game container. Arma's Wine server socket is created inside that private `/tmp`, so TeamSpeak 3 — launched on the host by the script — cannot see it. The two applications end up on separate Wine servers and ACRE2's named pipes never connect. Arma's `.rpt` log repeats `Pipe error: Read CreateFileA WinErrCode: 2` every 16 seconds.
+
+The fix is to expose the host paths to the container via Arma 3's Steam launch options. Run:
+
+``` bash
+./Arma3Helper.sh launchopts
+```
+
+This adds `PRESSURE_VESSEL_FILESYSTEMS_RW=/tmp:/home/<user>/Documents:/home/<user>/Downloads` to Arma 3's Steam launch options, preserving any existing options (such as `gamemoderun`). The script also runs this check automatically whenever it launches TeamSpeak 3.
+
+The same option gives Arma 3 access to your real Documents and Downloads folders, which is useful for modlists and configuration.
+
+After the first run, **restart Arma 3** — launch options only apply when the game starts — then launch TeamSpeak 3 with `./Arma3Helper.sh`. Verify the fix with `./Arma3Helper.sh debug`, which prints the required launch-options string.
+
+Note: the command modifies Steam's `localconfig.vdf` and keeps a backup at `localconfig.vdf.bak-arma3helper`. Close Steam fully before relying on the change, as Steam may overwrite the file on exit.
 
 ## Script Cannot Find TeamSpeak 3
 
