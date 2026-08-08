@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Arma3Helper.sh — Helper script for running Arma 3 with ACRE2 or TFAR on Linux
+# Arma3Helper.sh – Helper script for running Arma 3 with ACRE2 or TFAR on Linux
 #
 # Copyright (C) 2026 UKSFTA
 #
@@ -15,27 +15,27 @@
 #   - Installs TeamSpeak 3 into Arma's Wine/Proton prefix
 #   - Runs winetricks and winecfg inside that prefix
 #   - Auto-detects your Steam library paths, including external drives
-#   - Lists available Proton versions (official and custom, e.g. GE-Proton)
+#   - Lists available Proton versions (official and custom, for example GE-Proton)
 #   - Checks for required system dependencies (GStreamer, winetricks, etc.)
 #
 # GLOSSARY:
-#   Wine prefix / compatdata — A sandboxed Windows environment that Proton
+#   Wine prefix / compatdata – A sandboxed Windows environment that Proton
 #     creates for each game. Arma 3's prefix lives at:
 #     <SteamLibrary>/steamapps/compatdata/107410/
 #
-#   Proton — Valve's compatibility layer. It translates Windows game calls
+#   Proton – Valve's compatibility layer. It translates Windows game calls
 #     into Linux equivalents. Think of it as a Wine wrapper with extras.
 #
-#   ACRE2 / TFAR — TeamSpeak 3 plugins that provide in-game radio simulation
+#   ACRE2 / TFAR – TeamSpeak 3 plugins that provide in-game radio simulation
 #     for Arma 3. Both require TeamSpeak 3 (Windows version) to run inside
 #     the same Wine prefix as Arma.
 #
 # USAGE:
-#   ./Arma3Helper.sh            — Launch TeamSpeak 3 (start Arma first!)
-#   ./Arma3Helper.sh help       — Show full usage information
-#   ./Arma3Helper.sh checkdeps  — Check required system packages
-#   ./Arma3Helper.sh listproton — List available Proton versions
-#   ./Arma3Helper.sh launchopts — Fix Arma Steam launch options (ACRE2/TFAR)
+#   ./Arma3Helper.sh            – Launch TeamSpeak 3 (start Arma first!)
+#   ./Arma3Helper.sh help       – Show full usage information
+#   ./Arma3Helper.sh checkdeps  – Check required system packages
+#   ./Arma3Helper.sh listproton – List available Proton versions
+#   ./Arma3Helper.sh launchopts – Fix Arma Steam launch options (ACRE2/TFAR)
 #
 # Original Repository: https://github.com/ninelore/armaonlinux
 # Support:    https://discord.gg/p28Ra36  (ArmaOnUnix Discord)
@@ -46,7 +46,7 @@ _SCRIPTVER="2v0-0"
 ## USER CONFIGURATION
 ##
 ## You can edit the values directly here, or use an external config file.
-## The external config file is preferred — it survives script updates.
+## The external config file is preferred – it survives script updates.
 ## Run: ./Arma3Helper.sh createconfig
 ##
 ## IMPORTANT: All settings here can be left empty for auto-detection.
@@ -60,10 +60,10 @@ _SCRIPTVER="2v0-0"
 # in Steam. This MUST match exactly.
 #
 # Valid values:
-#   Official versions: "9.0", "8.0", "7.0", "6.3", "5.13", "5.0"
-#   Proton Experimental: "Experimental"
+#   Official versions: '9.0', '8.0', '7.0', '6.3', '5.13', '5.0'
+#   Proton Experimental: 'Experimental'
 #
-# Leave empty to default to "9.0".
+# Leave empty to default to '9.0'.
 # If you use a custom/GE Proton build, leave this empty and set
 # PROTON_CUSTOM_VERSION below instead.
 #
@@ -73,7 +73,7 @@ PROTON_OFFICIAL_VERSION=""
 # ARMA 3 COMPATDATA (Wine prefix) PATH
 # -----------------------------------------------------------------------------
 # Path to Arma 3's Wine prefix directory.
-# Leave empty for auto-detection (recommended — works with external drives).
+# Leave empty for auto-detection (recommended – works with external drives).
 #
 # The auto-detector scans all your Steam libraries from libraryfolders.vdf.
 #
@@ -90,7 +90,7 @@ COMPAT_DATA_PATH=""
 #
 # Only set this manually if Proton lives in a different library than Arma 3
 # AND auto-detection is not finding it.
-# Example: "/media/external_drive/SteamLibrary/steamapps"
+# Example: '/media/external_drive/SteamLibrary/steamapps'
 #
 STEAM_LIBRARY_PATH=""
 
@@ -103,9 +103,9 @@ STEAM_LIBRARY_PATH=""
 #
 # You can provide:
 #   (a) The folder name inside compatibilitytools.d:
-#         e.g. "GE-Proton9-20"
+#         for example 'GE-Proton9-20'
 #   (b) An absolute path to the proton executable:
-#         e.g. "/home/user/.steam/steam/compatibilitytools.d/GE-Proton9-20/proton"
+#         for example '/home/user/.steam/steam/compatibilitytools.d/GE-Proton9-20/proton'
 #
 # Leave empty if you are using an official Proton version.
 # Run './Arma3Helper.sh listproton' to see what custom builds are available.
@@ -292,7 +292,7 @@ _find_steam_libraries() {
     fi
 
     # Steam stores library paths in config/libraryfolders.vdf.
-    # Older Steam versions used steamapps/libraryfolders.vdf — check both.
+    # Older Steam versions used steamapps/libraryfolders.vdf – check both.
     local vdf=""
     if [[ -f "$steam_root/config/libraryfolders.vdf" ]]; then
         vdf="$steam_root/config/libraryfolders.vdf"
@@ -301,15 +301,15 @@ _find_steam_libraries() {
     fi
 
     if [[ -z "$vdf" ]]; then
-        # VDF not found — fall back to the default steamapps path
+        # VDF not found – fall back to the default steamapps path
         echo "$steam_root/steamapps"
         return
     fi
 
-    # Extract all "path" key values from the VDF.
+    # Extract all 'path' key values from the VDF.
     # VDF format example:
-    #     "path"    "/media/external/SteamLibrary"
-    # The grep pattern looks for lines with "path" and the sed strips quotes.
+    #     'path'    '/media/external/SteamLibrary'
+    # The grep pattern looks for lines with 'path' and the sed strips quotes.
     grep -E '"path"' "$vdf" | sed -E 's/.*"path"[[:space:]]+"(.*)"/\1/'
 }
 
@@ -319,7 +319,7 @@ _find_steam_libraries() {
 #
 #   Detection order:
 #     1. Parse libraryfolders.vdf for the library that lists app 107410
-#        in its "apps" block (the authoritative source).
+#        in its 'apps' block (the authoritative source).
 #     2. Fall back to scanning each library for a compatdata/107410
 #        directory that actually has content (pfx/ subdirectory).
 #        An empty compatdata directory (Steam junk) is NOT a match.
@@ -386,7 +386,7 @@ _list_custom_proton() {
     shopt -s nullglob
     for dir in "$tools_dir"/*/; do
         _dir_name="$(basename "$dir")"
-        # Only list if it is not an official Proton version (exclude if it starts with "Proton" followed by a space)
+        # Only list if it is not an official Proton version (exclude if it starts with 'Proton' followed by a space)
         if [[ "$_dir_name" != Proton\ * ]]; then
             # Check if a 'proton' executable exists in the sub-directory
             if [[ -x "$dir/proton" ]]; then
@@ -437,7 +437,7 @@ _check_pkg() {
             pacman -Q "$pkg" &>/dev/null
             ;;
         debian)
-            # Strip architecture suffix (e.g. :i386) for the package name check
+            # Strip architecture suffix (for example :i386) for the package name check
             local base_pkg="${pkg%%:*}"
             dpkg -l "$base_pkg" 2>/dev/null | grep -q "^ii"
             ;;
@@ -690,7 +690,7 @@ if [[ "$FSYNC" == "false" ]]; then
 fi
 
 # TeamSpeak 3 executable path inside the Wine prefix.
-# This path is correct when TS3 was installed using "Install for All Users"
+# This path is correct when TS3 was installed using 'Install for All Users'
 # with the default path (C:\Program Files\TeamSpeak 3 Client).
 # If TS3 ends up in AppData instead, see the 'install' command instructions.
 TSPATH="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe"
@@ -698,7 +698,7 @@ TSPATH="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client
 # -----------------------------------------------------------------------------
 # Resolve Proton version string
 # -----------------------------------------------------------------------------
-# Normalize the version string by removing any user-provided "Proton " prefix
+# Normalize the version string by removing any user-provided 'Proton ' prefix
 PROTON_OFFICIAL_VERSION="${PROTON_OFFICIAL_VERSION#Proton }"
 
 if [[ "$PROTON_OFFICIAL_VERSION" == "Proton Experimental" || \
@@ -714,7 +714,7 @@ fi
 # Resolve Proton executable path
 # -----------------------------------------------------------------------------
 if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
-    # Custom Proton build (e.g. GE-Proton, Proton-TKG)
+    # Custom Proton build (for example GE-Proton, Proton-TKG)
     if [[ -x "$PROTON_CUSTOM_VERSION" ]]; then
         # Absolute path to the proton binary was provided
         PROTONEXEC="$PROTON_CUSTOM_VERSION"
@@ -737,7 +737,7 @@ else
     # Official Proton: search all Steam libraries for the matching version.
     PROTONEXEC=""
     while IFS= read -r lib_path; do
-        # Use a wildcard search to handle variations like "Proton 9.0 (Beta)"
+        # Use a wildcard search to handle variations like 'Proton 9.0 (Beta)'
         for _cand_dir in "$lib_path/steamapps/common/Proton $PROTON_OFFICIAL_VERSION"*; do
             # Filter out non-Proton runtimes that might match the wildcard
             if [[ "$_cand_dir" == *"Runtime"* || "$_cand_dir" == *"Hotfix"* ]]; then
@@ -787,7 +787,7 @@ _ensure_steam_launch_options() {
     local patched=0 skipped=0
 
     if ! command -v python3 &>/dev/null; then
-        echo -e "\e[33mWarning\e[0m: python3 not found — cannot auto-configure Steam launch options."
+        echo -e "\e[33mWarning\e[0m: python3 not found – cannot auto-configure Steam launch options."
         echo "Set this manually in Steam -> Arma 3 -> Properties -> Launch Options:"
         echo "  $target %command%"
         return 1
@@ -861,7 +861,7 @@ PYEOF
             echo -e "\e[33mNote\e[0m: Steam is running and may overwrite this change on exit."
             echo "If it doesn't stick, close Steam fully, run './Arma3Helper.sh launchopts', then relaunch Arma."
         else
-            echo "Done. Launch options applied — start Arma 3 and ACRE2 will connect."
+            echo "Done. Launch options applied – start Arma 3 and ACRE2 will connect."
         fi
     fi
 }
@@ -871,7 +871,7 @@ PYEOF
 ###############################################################################
 
 # No arguments: launch TeamSpeak 3 inside Arma's Wine prefix.
-# Arma 3 must be running first — TeamSpeak needs the game's audio session.
+# Arma 3 must be running first – TeamSpeak needs the game's audio session.
 if [[ -z "$*" ]]; then
     _ensure_steam_launch_options
     _checkpath "$TSPATH" "TeamSpeak 3"
@@ -897,17 +897,17 @@ case "$1" in
     #
     #   1. Download the TeamSpeak 3 Windows installer (64-bit version).
     #      Get it from: https://www.teamspeak.com/en/downloads/
-    #      Choose "Windows 64-bit" — do NOT use the Linux version.
+    #      Choose 'Windows 64-bit' – do NOT use the Linux version.
     #
     #   2. Run this command:
     #      ./Arma3Helper.sh install /path/to/TeamSpeak3-Client-win64-x.x.x.exe
     #
     #   3. When the installer opens, you MUST:
-    #      a. Select "Install for All Users" (not "Install for current user only")
-    #         WHY: "Install for All Users" places TS3 in
+    #      a. Select 'Install for All Users' (not 'Install for current user only')
+    #         WHY: 'Install for All Users' places TS3 in
     #              C:\Program Files\TeamSpeak 3 Client\
     #              which is where this script expects to find it.
-    #              "Install for current user only" places it in AppData\Local,
+    #              'Install for current user only' places it in AppData\Local,
     #              which the script cannot find automatically.
     #
     #      b. Accept the default installation path WITHOUT changing it.
@@ -916,7 +916,7 @@ case "$1" in
     #
     #   4. After installation, launch TS3 with './Arma3Helper.sh' and then:
     #      - Go to Tools > Options > Addons
-    #      - Disable "Gamepad and Joystick Hotkey Support"
+    #      - Disable 'Gamepad and Joystick Hotkey Support'
     #        WHY: This plugin crashes TS3 when a gamepad/controller is present.
     # -------------------------------------------------------------------------
         echo ""
@@ -926,16 +926,16 @@ case "$1" in
         echo ""
         echo " CRITICAL: Follow these steps in the installer exactly:"
         echo ""
-        echo "  Step 1 — Select:"
+        echo "  Step 1 – Select:"
         echo -e "             \e[33mInstall for All Users\e[0m"
         echo "           (NOT 'Install for current user only')"
         echo ""
-        echo "  Step 2 — Accept the default path WITHOUT changing it:"
+        echo "  Step 2 – Accept the default path WITHOUT changing it:"
         echo -e "             \e[33mC:\\Program Files\\TeamSpeak 3 Client\e[0m"
         echo ""
-        echo "  Step 3 — Complete the installation."
+        echo "  Step 3 – Complete the installation."
         echo ""
-        echo "  Step 4 — After installation, disable this TS3 plugin:"
+        echo "  Step 4 – After installation, disable this TS3 plugin:"
         echo -e "             \e[33mGamepad and Joystick Hotkey Support\e[0m"
         echo "           (Tools > Options > Addons)"
         echo ""
@@ -992,7 +992,7 @@ case "$1" in
         while IFS= read -r lib_path; do
             _sa="$lib_path/steamapps"
             if [[ -d "$_sa/common" ]]; then
-                # Use find to locate directories starting with "Proton" to handle spaces and wildcards
+                # Use find to locate directories starting with 'Proton' to handle spaces and wildcards
                 while IFS= read -r _dir; do
                     if [[ -f "$_dir/proton" ]]; then
                         _ver="$(basename "$_dir")"
@@ -1010,7 +1010,7 @@ case "$1" in
         done < <(_find_steam_libraries)
 
         if [[ "$_any_official" == false ]]; then
-            echo "  (none found — install a Proton version via Steam)"
+            echo "  (none found – install a Proton version via Steam)"
         fi
 
         echo ""
@@ -1023,8 +1023,8 @@ case "$1" in
         echo "To use a version, edit your config file:"
         echo "  $USERCONFIG/config"
         echo ""
-        echo "Official:  Set PROTON_OFFICIAL_VERSION=\"9.0\"  (example)"
-        echo "Custom:    Set PROTON_CUSTOM_VERSION=\"GE-Proton9-20\" (example)"
+        echo "Official:  Set PROTON_OFFICIAL_VERSION='9.0'  (example)"
+        echo "Custom:    Set PROTON_CUSTOM_VERSION='GE-Proton9-20' (example)"
         echo "           Leave the other one empty."
         echo ""
         ;;
@@ -1039,11 +1039,11 @@ case "$1" in
     #   common audio and thermal-vision issues.
     #
     #   DLLs installed:
-    #     d3dcompiler_43 — DirectX shader compiler (fixes some rendering issues)
-    #     d3dx10_43      — DirectX 10 (required by some mods)
-    #     d3dx11_43      — DirectX 11 (required by some mods)
-    #     xact_x64       — Microsoft XACT audio engine (fixes audio issues)
-    #     xaudio29       — XAudio2 library (fixes audio crackling)
+    #     d3dcompiler_43 – DirectX shader compiler (fixes some rendering issues)
+    #     d3dx10_43      – DirectX 10 (required by some mods)
+    #     d3dx11_43      – DirectX 11 (required by some mods)
+    #     xact_x64       – Microsoft XACT audio engine (fixes audio issues)
+    #     xaudio29       – XAudio2 library (fixes audio crackling)
         echo "Running winetricks inside Arma 3's Wine prefix..."
         wrappercmd="$(_get_wrappercmd)"
         echo "Using: $wrappercmd"
@@ -1061,7 +1061,7 @@ case "$1" in
             echo "Done. Run Arma 3 and check if audio/thermal-vision issues are resolved."
         else
             echo "Running: $wrappercmd ${*:2}"
-            $wrappercmd "${*:2}"
+            $wrappercmd "${@:2}"
         fi
         ;;
 
@@ -1084,7 +1084,7 @@ case "$1" in
     # Share this output when asking for help on the Discord.
         echo ""
         echo "================================================================"
-        echo " Debug Information — Arma3Helper.sh"
+        echo " Debug Information – Arma3Helper.sh"
         echo "================================================================"
         echo ""
 
@@ -1193,7 +1193,7 @@ case "$1" in
     # Print usage information.
         echo ""
         echo "================================================================"
-        echo " Arma3Helper.sh — Usage Guide"
+        echo " Arma3Helper.sh – Usage Guide"
         echo "================================================================"
         echo ""
         echo " ./Arma3Helper.sh"

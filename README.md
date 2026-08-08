@@ -27,7 +27,7 @@ public to support the wider Arma on Linux/Unix community.
 
 ## Quick Start
 
-If you are new to this guide, see **Annex B — Quick Reference Commands** in `arma3-linux-guide.qmd` for a complete, step-by-step setup workflow.
+If you are new to this guide, see **Annex B – Quick Reference Commands** in `arma3-linux-guide.qmd` for a complete, step-by-step setup workflow.
 
 ## Usage
 
