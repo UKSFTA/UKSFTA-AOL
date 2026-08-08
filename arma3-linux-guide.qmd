@@ -231,7 +231,7 @@ gstreamer1-plugins-good.i686
 If Arma 3 crashes on startup, it is often due to outdated GPU drivers or missing Vulkan libraries. To resolve these issues:
 
 - **Update GPU Drivers:** Ensure your system's graphics drivers are up to date. For AMD and Intel users, this means keeping your **Mesa** drivers current. NVIDIA users should ensure the latest proprietary drivers are installed.
-- **Install Vulkan Libraries:** Ensure the necessary Vulkan support packages for your distribution are installed (e.g., `vulkan-tools`, `mesa-vulkan-drivers`).
+- **Install Vulkan Libraries:** Ensure the necessary Vulkan support packages for your distribution are installed (for example `vulkan-tools`, `mesa-vulkan-drivers`).
 - **Clear Shader Cache:** If the game crashes after previously working, the local shader cache may be corrupted. You can safely clear this by deleting the contents of the shader cache directory for Arma 3 (Steam App ID 107410):
 ```bash
 rm -rf ~/.local/share/Steam/steamapps/shadercache/107410/*
@@ -313,7 +313,7 @@ Right-click on Arma 3 in your Steam library. Click **Properties**.
 
 Navigate to the **Compatibility** tab. Enable the checkbox labelled **Force the use of a specific Steam Play compatibility tool**.
 
-Select the same Proton version you chose in step 3.6. Close the Properties window.
+Select the same Proton version you selected above. Close the Properties window.
 
 Make a note of the Proton version you selected. You will need it when configuring the Arma3Helper script in Chapter 5.
 
@@ -427,7 +427,7 @@ This creates a file at `~/.config/arma3helper/config`. Open it in a text editor 
 
 ### Setting the Proton Version
 
-Set `PROTON_OFFICIAL_VERSION` to match the Proton version you selected in Steam for Arma 3 (see Chapter 3, step 3.11). The value must match exactly.
+Set `PROTON_OFFICIAL_VERSION` to match the Proton version you selected in Steam for Arma 3 (see Chapter 3, "Setting a Proton Version Specifically for Arma 3"). The value must match exactly.
 
 ``` bash
 # Official Proton example:
@@ -503,7 +503,7 @@ The following commands are available. Run `./Arma3Helper.sh help` to see this li
 
 Before installing TeamSpeak 3, install the Windows components that Arma 3 and its radio plugins require. The script handles this with a single command.
 
-Ensure Arma 3 has been launched at least once (Chapter 4, step 4.4) before running this command. The Wine prefix must exist.
+Ensure Arma 3 has been launched at least once (see Chapter 4, "Downloading and First Launch") before running this command. The Wine prefix must exist.
 
 Run:
 
@@ -514,10 +514,10 @@ Run:
 This installs the following components into Arma's Wine prefix:
 
 - **`d3dcompiler_43`**: DirectX shader compiler. Fixes certain rendering issues.
-- **`d3dx10_43`     **: DirectX 10 runtime. Required by some mods.              
-- **`d3dx11_43`     **: DirectX 11 runtime. Required by some mods.              
-- **`xact_x64`      **: Microsoft XACT audio engine. Fixes audio problems.      
-- **`xaudio29`      **: XAudio2 library. Fixes audio crackling at high volume.  
+- **`d3dx10_43`**: DirectX 10 runtime. Required by some mods.
+- **`d3dx11_43`**: DirectX 11 runtime. Required by some mods.
+- **`xact_x64`**: Microsoft XACT audio engine. Fixes audio problems.
+- **`xaudio29`**: XAudio2 library. Fixes audio crackling at high volume.
 
 The installation may take several minutes. Do not interrupt it. A slow internet connection will extend the time needed.
 
@@ -535,9 +535,9 @@ The native Linux TeamSpeak 3 client cannot load the ACRE2 or TFAR Windows plugin
 
 ## Downloading TeamSpeak 3
 
-7.3. Download the TeamSpeak 3 Windows installer from the [official website](https://www.teamspeak.com/en/downloads/#ts3client).
+1. Download the TeamSpeak 3 Windows installer from the [official website](https://www.teamspeak.com/en/downloads/#ts3client).
 
-7.4. Select the **Windows** version. Choose the **64-bit** installer. The filename will resemble `TeamSpeak3-Client-win64-3.x.x.exe`. Save it to a convenient location such as your Downloads folder.
+2. Select the **Windows** version. Choose the **64-bit** installer. The filename will resemble `TeamSpeak3-Client-win64-3.x.x.exe`. Save it to a convenient location such as your Downloads folder.
 
 
 Do not use the Linux version. Do not use TeamSpeak 5. TeamSpeak 5 does not yet support the ACRE2 or TFAR plugins.
@@ -683,7 +683,7 @@ ACRE2 settings are accessible in-game through the CBA Settings System. Press **E
 
 - **Radio Volume**: Controls the in-ear radio volume.
 - **Speaker Volume**: Volume of radio traffic from players physically nearby.
-- **Babel Languages**: Can be configured by mission makers.
+- **Babel Languages**: Mission makers can configure these.
 
 \newpage
 
@@ -847,7 +847,7 @@ Both options achieve the same result. Option A is simpler.
 
 ## Arma 3 Crashes on Startup
 
-A crash immediately after launch, before the main menu appears, usually indicates missing Vulkan support. Install the appropriate package (Chapter 2, section 2.11).
+A crash immediately after launch, before the main menu appears, usually indicates missing Vulkan support. Install the appropriate package (Chapter 2, "Resolving Startup Crashes").
 
 After installing, verify Vulkan is working:
 
@@ -859,7 +859,7 @@ If `vulkaninfo` reports errors about a missing GPU or driver, your graphics driv
 
 ## TeamSpeak 3 Crashes After a Few Seconds
 
-This is almost always caused by the Gamepad and Joystick Hotkey Support plugin. Disable it as described in Chapter 7, step 7.16.
+This is almost always caused by the Gamepad and Joystick Hotkey Support plugin. Disable it as described in Chapter 7, "Disable the Gamepad and Joystick Plugin".
 
 The crash occurs specifically when a controller, joystick, or other HID device is connected. Wireless controllers count too: a Bluetooth controller such as a Stadia controller triggers the crash even when it is not in use. Unplugging or unpairing the device temporarily will also stop the crash, but disabling the plugin is the correct solution.
 
@@ -959,7 +959,7 @@ Copy the output of both commands and include it when asking for help. This infor
 
 ## Arma 3 Launch Parameters
 
-Arma 3 supports a range of launch parameters that can improve performance. Add them in the Arma 3 Unix Launcher or in Steam's **Launch Options** field (Chapter 3, step 3.14).
+Arma 3 supports a range of launch parameters that can improve performance. Add them in the Arma 3 Unix Launcher or in Steam's **Launch Options** field (Chapter 3, "Adding Arma 3 Launch Options").
 
 The following parameters are recommended. Not all will benefit every system. Try them individually to identify which help your configuration.
 
@@ -1044,7 +1044,7 @@ Enable it by adding `MANGOHUD=1 %command%` to the Steam launch options.
 ``` bash
 # 1. Download the script
 curl -o ~/Arma3Helper.sh \
-https://raw.githubusercontent.com/ninelore/armaonlinux/master/Arma3Helper.sh
+https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh
 chmod +x ~/Arma3Helper.sh
 
 # 2. Create the config file

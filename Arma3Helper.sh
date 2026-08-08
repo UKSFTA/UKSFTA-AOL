@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Arma3Helper.sh — Helper script for running Arma 3 with ACRE2 or TFAR on Linux
+#
+# Copyright (C) 2026 UKSFTA
 #
 # Original Author:  Ingo Reitz <9l@9lo.re>
 # Contributing:     famfo <famfo@famfo.xyz>
@@ -126,22 +128,12 @@ FSYNC=true
 ## DO NOT EDIT BELOW THIS LINE
 ###############################################################################
 
-# Refuse to run if called with a different shell (e.g. sh, dash).
-# This script uses bash-specific syntax that will break under other shells.
-if [ -n "$_" ]; then
-    echo "FATAL: Do not run this script with sh or any other shell!"
-    echo "       Use:  bash ./Arma3Helper.sh"
-    echo "       Or make it executable with chmod +x and run: ./Arma3Helper.sh"
-    echo "Current shell: $_"
-    exit 1
-fi
-
 # -----------------------------------------------------------------------------
 # VERSIONING
 # -----------------------------------------------------------------------------
 # Fetch the latest release tag from GitHub API
 _get_latest_version() {
-    curl -s --max-time 5 https://api.github.com/repos/UKSFTA/Arma3Helper/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/'
+    curl -fs --max-time 5 https://api.github.com/repos/UKSFTA/UKSFTA-AOL/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/'
 }
 
 # -----------------------------------------------------------------------------
@@ -160,6 +152,7 @@ PROTON_CUSTOM_VERSION=""
 ESYNC=true
 FSYNC=true
 EOF
+        chmod 600 "$USERCONFIG/config"
         echo "Created default configuration at $USERCONFIG/config"
     fi
 }
@@ -781,7 +774,15 @@ fi
 # './Arma3Helper.sh launchopts'.
 # -----------------------------------------------------------------------------
 _ensure_steam_launch_options() {
+    # Validate: RUNTIME_SHARE_DIRS becomes part of the Steam launch options
+    # string, so restrict it to safe characters (paths, colons, slashes).
+    # An unescaped quote or shell metacharacter could inject into the VDF or
+    # the game's command line.
     local share_dirs="${RUNTIME_SHARE_DIRS:-/tmp:$HOME/Documents:$HOME/Downloads}"
+    if [[ ! "$share_dirs" =~ ^[A-Za-z0-9_/:.,-]+$ ]]; then
+        echo -e "\e[33mWarning\e[0m: RUNTIME_SHARE_DIRS contains invalid characters. Using /tmp only."
+        share_dirs="/tmp"
+    fi
     local target="PRESSURE_VESSEL_FILESYSTEMS_RW=$share_dirs"
     local patched=0 skipped=0
 
@@ -881,7 +882,7 @@ if [[ -z "$*" ]]; then
     echo " TeamSpeak must run inside the same prefix as Arma."
     echo "------------------------------------------------------------"
     echo ""
-    sh -c "'$PROTONEXEC' run '$TSPATH'"
+    "$PROTONEXEC" run "$TSPATH"
     exit 0
 fi
 
@@ -957,7 +958,7 @@ case "$1" in
             exit 1
         fi
 
-        sh -c "'$PROTONEXEC' run '$2'"
+        "$PROTONEXEC" run "$2"
         ;;
 
     # -------------------------------------------------------------------------
@@ -1130,7 +1131,7 @@ case "$1" in
         echo "PRESSURE_VESSEL_FILESYSTEMS_RW=${RUNTIME_SHARE_DIRS:-/tmp:$HOME/Documents:$HOME/Downloads} %command%"
         echo ""
         echo "--- Launch Command ---"
-        echo "sh -c \"'$PROTONEXEC' run '$TSPATH'\""
+        echo "\"$PROTONEXEC\" run \"$TSPATH\""
         echo ""
         echo "--- All Steam Libraries ---"
         while IFS= read -r lib; do
@@ -1162,7 +1163,7 @@ case "$1" in
         echo ""
         _confirmation "Proceed with update?"
         _checkinstall curl
-        curl -o "$0" https://raw.githubusercontent.com/ninelore/armaonlinux/master/Arma3Helper.sh
+        curl -fo "$0" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh
         chmod +x "$0"
         echo ""
         echo "Update complete. Run './Arma3Helper.sh debug' to verify."
@@ -1177,12 +1178,10 @@ case "$1" in
         if [[ -e "$USERCONFIG/config" ]]; then
             echo -e "\e[33mA config file already exists at:\e[0m $USERCONFIG/config"
             _confirmation "Override it with a fresh template?"
-        else
-            mkdir -p "$USERCONFIG"
         fi
         _checkinstall curl
-        curl -o "$USERCONFIG/config" \
-            https://raw.githubusercontent.com/ninelore/armaonlinux/master/config
+        curl -fo "$USERCONFIG/config" \
+            https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/config
         echo ""
         echo "Config file created at: $USERCONFIG/config"
         echo "Edit it to set your Proton version and other preferences."
@@ -1200,6 +1199,8 @@ case "$1" in
         echo " ./Arma3Helper.sh"
         echo "     Launch TeamSpeak 3 inside Arma 3's Wine prefix."
         echo "     Always start Arma 3 FIRST before running this."
+        echo "     Also ensures Arma's Steam launch options expose the host"
+        echo "     paths ACRE2/TFAR need (same as 'launchopts')."
         echo ""
         echo " ./Arma3Helper.sh install <path/to/TS3-installer.exe>"
         echo "     Install TeamSpeak 3 (Windows version) into Arma's prefix."

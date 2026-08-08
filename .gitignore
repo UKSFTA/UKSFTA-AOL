@@ -28,3 +28,6 @@ Thumbs.db
 .omo/
 .opencode/
 EOF
+
+/.quarto/
+**/*.quarto_ipynb

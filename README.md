@@ -14,13 +14,14 @@ public to support the wider Arma on Linux/Unix community.
   library locations automatically.
 - **Custom Proton Support:** Improved support for custom and GE-Proton versions.
 - **Setup Wizard:** Automated onboarding detects existing installations and guides
-  users through necessary Winetricks/dependency setup.
+  users through necessary `winetricks`/dependency setup.
 - **Prefix Protection:** Proactive safety check alerts users to potential Proton-version
   mismatches to prevent configuration breakage.
 - **Automated CI/CD:** Integrated GitHub Actions workflow to automatically render and
   deploy the documentation to GitHub Pages (supporting both HTML and PDF formats).
 - **Comprehensive Documentation:** A full, updated guide in Quarto (`.qmd`) format is
-  included, written to the standards of the JSP 101 Writers' Handbook.
+  included, written to the standards of the Joint Service Publication 101 (JSP 101)
+  Writers' Handbook.
 - **Enhanced Dependencies:** Expanded checks to ensure multilib GStreamer libraries are
   present for audio support.
 
@@ -41,3 +42,13 @@ For detailed setup instructions, please consult the `arma3-linux-guide.qmd` file
 ## Support
 
 Community support is available on the [ArmaOnUnix Discord](https://discord.gg/p28Ra36).
+
+## Licence and Attribution
+
+This project is a community fork of [armaonlinux](https://github.com/ninelore/armaonlinux)
+by Ingo Reitz. The helper script is licensed under the GNU General Public License
+version 2 (see `LICENSE`). The guide (`arma3-linux-guide.qmd`) is adapted in part from
+upstream documentation, which is licensed under the Creative Commons Attribution
+4.0 licence; upstream attribution is retained in the guide's history and title
+metadata. The Pandoc template in `templates/` retains its original third-party
+licence headers.
