@@ -493,6 +493,103 @@ rm -rf "$TMPDIR_TEST/radio-lib" "$TMPDIR_TEST/radio-home"
 echo ""
 
 # ===========================================================================
+echo "── 8c. Mod listing from RPT and live process ──"
+# ===========================================================================
+# listmods must parse the -mod= launch line (from the live process via /proc,
+# or from the newest RPT header) into Workshop ids, then resolve names from
+# mod.cpp. Test the RPT fallback path with a mock RPT + mock library.
+
+# Source the real functions.
+_plugin_fn="$(sed -n '/^_find_latest_rpt() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_get_arma_cmdline() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_parse_loaded_mods() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_mod_name_from_workshop() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_list_installed_mods() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_list_loaded_mods() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_find_steam_root() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_find_steam_libraries() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+
+MOCK_HOME="$TMPDIR_TEST/mods-home"
+MOCK_LIB="$TMPDIR_TEST/mods-lib"
+mkdir -p "$MOCK_HOME/.steam/steam/steamapps"
+mkdir -p "$MOCK_HOME/.steam/steam/config"
+cat > "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
+"libraryfolders"
+{
+	"0"
+	{
+		"path"		"__MOCK_LIB__"
+	}
+}
+VDF
+sed -i "s|__MOCK_LIB__|$MOCK_LIB|" "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf"
+mkdir -p "$MOCK_LIB/steamapps/workshop/content/107410/751965892"
+mkdir -p "$MOCK_LIB/steamapps/workshop/content/107410/450814997"
+printf 'name = "Advanced Combat Radio Environment 2";\n' > "$MOCK_LIB/steamapps/workshop/content/107410/751965892/mod.cpp"
+printf 'name = "Community Base Addons";\n' > "$MOCK_LIB/steamapps/workshop/content/107410/450814997/mod.cpp"
+
+# Mock RPT with a Windows-style -mod= line (as Arma writes it).
+MOCK_COMPAT="$TMPDIR_TEST/mods-compat/107410"
+MOCK_RPT_DIR="$MOCK_COMPAT/pfx/drive_c/users/steamuser/AppData/Local/Arma 3"
+mkdir -p "$MOCK_RPT_DIR"
+cat > "$MOCK_RPT_DIR/Arma3_x64_2026-08-29_00-00-00.rpt" <<'RPT'
+=====================================================================
+== S:\common\Arma 3\Arma3_x64.exe
+== "S:\common\Arma 3\Arma3_x64.exe" -mod=S:\workshop\content\107410\751965892;S:\workshop\content\107410\450814997
+=====================================================================
+RPT
+
+# _find_latest_rpt must find the mock (HOME-independent; uses COMPAT_DATA_PATH).
+export COMPAT_DATA_PATH="$MOCK_COMPAT"
+
+# Case A: parse ids from the RPT fallback
+_ids="$(_parse_loaded_mods)"
+if echo "$_ids" | grep -q "^751965892$" && echo "$_ids" | grep -q "^450814997$" && \
+   [[ "$(echo "$_ids" | wc -l)" == "2" ]]; then
+    pass "parse_loaded_mods extracts Workshop ids from RPT"
+else
+    fail "parse_loaded_mods wrong (got: $_ids)"
+fi
+
+# Case B: mod name resolution from mod.cpp
+_nm="$(_mod_name_from_workshop 751965892)"
+if [[ "$_nm" == "Advanced Combat Radio Environment 2" ]]; then
+    pass "mod name resolved from mod.cpp"
+else
+    fail "mod name resolution wrong (got: $_nm)"
+fi
+
+# Case C: installed list excludes the content root and names known mods
+_inst="$(_list_installed_mods)"
+if ! echo "$_inst" | grep -q "107410\s" && \
+   echo "$_inst" | grep -q "Advanced Combat Radio Environment 2"; then
+    pass "installed mods list excludes root and names mods"
+else
+    fail "installed mods list wrong"
+fi
+
+# Case D: loaded list flags ACRE2 as loaded
+_load="$(_list_loaded_mods)"
+if echo "$_load" | grep -q "ACRE2 is loaded"; then
+    pass "loaded mods flags ACRE2"
+else
+    fail "loaded mods did not flag ACRE2"
+fi
+
+rm -rf "$TMPDIR_TEST/mods-home" "$TMPDIR_TEST/mods-lib" "$TMPDIR_TEST/mods-compat"
+unset COMPAT_DATA_PATH
+
+echo ""
+
+# ===========================================================================
 echo "── 9. Prefix reset backup coverage ──"
 # ===========================================================================
 # The full reset must back up BOTH profile folders (default + named),

@@ -834,6 +834,8 @@ _check_radio_plugins() {
         echo -e "  \e[33m[MISSING]\e[0m ACRE2 plugin"
         echo "    Launch Arma 3 once with the ACRE2 mod active. It"
         echo "    installs its plugin automatically when the mod loads."
+        echo "    If that does not work, install it manually with:"
+        echo "      ./Arma3Helper.sh acremod"
     fi
 
     if [[ "$tfar_found" == 1 ]]; then
@@ -850,6 +852,268 @@ _check_radio_plugins() {
         echo "    Re-enable with:  ./Arma3Helper.sh tfarmod --enable"
     fi
 
+    return 0
+}
+
+# _install_acre2_plugin
+#   Manually install the ACRE2 plugin from the Workshop mod folder.
+#   ACRE2 normally installs its plugin automatically when the mod loads,
+#   but this can fail if TeamSpeak was installed after the mod first
+#   launched, or if the plugin file was removed. This command is the
+#   repair path: it copies the DLLs straight from the mod source.
+_install_acre2_plugin() {
+    local plugins_dir="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+    if [[ ! -d "$plugins_dir" ]]; then
+        echo -e "\e[31mError\e[0m: TeamSpeak plugins folder not found:"
+        echo "  $plugins_dir"
+        echo "Install TeamSpeak first:  ./Arma3Helper.sh install"
+        return 1
+    fi
+
+    # ACRE2 plugin DLLs live in the Workshop mod folder under plugin/.
+    local lib_path ws
+    while IFS= read -r lib_path; do
+        [[ -z "$lib_path" ]] && continue
+        while IFS= read -r ws; do
+            [[ -z "$ws" ]] && continue
+            local src="$ws/plugin"
+            if [[ -f "$src/acre2_win64.dll" || -f "$src/acre2_win32.dll" ]]; then
+                local copied=0
+                # shellcheck disable=SC2012
+                for f in "$src"/acre2_win*.dll; do
+                    if [[ -f "$f" ]]; then
+                        cp -f "$f" "$plugins_dir/"
+                        echo "  Copied: $(basename "$f")"
+                        copied=1
+                    fi
+                done
+                if [[ "$copied" == 1 ]]; then
+                    echo -e "\e[32mACRE2 plugin installed.\e[0m"
+                    echo "Restart TeamSpeak 3 to load it."
+                    return 0
+                fi
+            fi
+        done < <(find "$lib_path/steamapps/workshop/content/107410" -maxdepth 1 -type d -iname "*751965892*" 2>/dev/null)
+    done < <(_find_steam_libraries)
+
+    echo -e "\e[31mError\e[0m: Could not find the ACRE2 plugin."
+    echo "Install the ACRE2 mod from the Steam Workshop first."
+    return 1
+}
+
+# _check_radio_connection
+#   Diagnose why the radio plugins cannot talk to Arma 3. The plugins
+#   exchange data with Arma through Windows named pipes, so both processes
+#   must run inside the same Wine environment. This check names the exact
+#   cause when a plugin reports 'cannot find game instance'.
+_check_radio_connection() {
+    echo ""
+    echo "Checking radio connection to Arma 3..."
+    echo ""
+
+    # The pipes only exist while Arma runs, so Arma must be running first.
+    if ! pgrep -f "arma3_x64" >/dev/null 2>&1; then
+        echo -e "  \e[31m[STOPPED]\e[0m Arma 3 is not running."
+        echo "    Start Arma 3 from Steam, wait for the main menu,"
+        echo "    then start TeamSpeak 3 with:  ./Arma3Helper.sh"
+        return 1
+    fi
+    echo -e "  \e[32m[OK]\e[0m     Arma 3 is running"
+
+    # The pipes are wineserver objects. Arma and TeamSpeak must share one
+    # wineserver, which requires the container to see the shared directory.
+    if ! _launch_options_apply_pressure_vessel; then
+        echo -e "  \e[31m[ISSUE]\e[0m  Arma's launch options do not share the container path."
+        echo "    ACRE2/TFAR need Arma and TeamSpeak on one wineserver."
+        echo "    Run:  ./Arma3Helper.sh launchopts"
+        echo "    Then restart Arma 3 once."
+        return 1
+    fi
+    echo -e "  \e[32m[OK]\e[0m     Launch options share the container path"
+
+    echo ""
+    echo -e "\e[32mThe radio connection path looks correct.\e[0m"
+    echo "If radios still do not work, confirm in TeamSpeak that the"
+    echo "plugin is enabled (Tools -> Options -> Addons)."
+    echo ""
+
+    # Show whether the radio mods are actually in the loaded mod list.
+    echo "Loaded radio mods:"
+    local mods
+    mods="$(_parse_loaded_mods)"
+    if [[ -z "$mods" ]]; then
+        echo "  (could not read the loaded mod list)"
+    else
+        local acre2=0 tfar=0 id
+        while IFS= read -r id; do
+            [[ -z "$id" ]] && continue
+            case "$id" in
+                751965892) acre2=1 ;;
+                894678801|620019431) tfar=1 ;;
+            esac
+        done <<< "$mods"
+        if [[ "$acre2" == 1 ]]; then
+            echo -e "  \e[32m[OK]\e[0m     ACRE2 is in the loaded mod list"
+        else
+            echo -e "  \e[31m[NOT LOADED]\e[0m ACRE2 – enable the ACRE2 mod in your launcher"
+        fi
+        if [[ "$tfar" == 1 ]]; then
+            echo -e "  \e[32m[OK]\e[0m     TFAR is in the loaded mod list"
+        else
+            echo -e "  \e[33m[NOT LOADED]\e[0m TFAR – enable the TFAR mod if your unit uses it"
+        fi
+    fi
+    return 0
+}
+
+# _launch_options_apply_pressure_vessel
+#   Return 0 if Arma's Steam launch options include the PRESSURE_VESSEL
+#   filesystem share that keeps Arma and TeamSpeak on one wineserver.
+_launch_options_apply_pressure_vessel() {
+    local vdf
+    for vdf in "$_STEAM_ROOT"/userdata/*/config/localconfig.vdf; do
+        [[ -f "$vdf" ]] || continue
+        if grep -q "PRESSURE_VESSEL_FILESYSTEMS_RW" "$vdf" 2>/dev/null; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# _find_latest_rpt
+#   Locate the newest Arma 3 .rpt log file. The game writes these to
+#   AppData/Local/Arma 3 inside the prefix. The newest one is the current
+#   or most recent session. Its header records the exact launch command,
+#   including the loaded mod list.
+_find_latest_rpt() {
+    local rpt_dir="$COMPAT_DATA_PATH/pfx/drive_c/users/steamuser/AppData/Local/Arma 3"
+    # shellcheck disable=SC2012
+    ls -t "$rpt_dir"/arma3*.rpt "$rpt_dir"/Arma3*.rpt 2>/dev/null | head -1
+}
+
+# _get_arma_cmdline
+#   Get the command line of the running Arma 3 process. Prefer the live
+#   process via /proc (always current, no log file needed), then fall back
+#   to the newest RPT header (survives after Arma exits).
+_get_arma_cmdline() {
+    # Live process: NUL-separated args, convert to spaces.
+    local pid
+    pid="$(pgrep -f "arma3_x64" | head -1)"
+    if [[ -n "$pid" && -r "/proc/$pid/cmdline" ]]; then
+        tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null
+        return 0
+    fi
+    # Fallback: newest RPT header records the launch command.
+    local rpt
+    rpt="$(_find_latest_rpt)"
+    if [[ -n "$rpt" ]]; then
+        head -3 "$rpt" | grep -m1 '\-mod=' || true
+        return 0
+    fi
+    return 1
+}
+
+# _parse_loaded_mods
+#   Extract the loaded mod list from the running Arma process (or the
+#   newest RPT header). The launch line carries
+#   '-mod=S:\workshop\content\107410\<id>;...'. Prints one workshop id
+#   per line.
+_parse_loaded_mods() {
+    local cmdline
+    cmdline="$(_get_arma_cmdline)"
+    [[ -z "$cmdline" ]] && return 1
+    # The mod list may be Windows-style (S:\workshop\...) or already a
+    # host path. Extract everything after -mod= up to the next quote.
+    local modlist
+    modlist="$(echo "$cmdline" | sed -n 's/.*-mod=\([^"]*\)/\1/p' | sed 's/[; ]*$//')"
+    [[ -z "$modlist" ]] && return 1
+    # Keep only the workshop content ids: .../content/107410/<id>
+    # Paths may be Windows-style (S:\workshop\content\107410\<id>) or
+    # host-style (/media/.../steamapps/workshop/content/107410/<id>).
+    echo "$modlist" | tr ';' '\n' | sed -n 's#.*[\\/]content[\\/]107410[\\/]##p' | sed '/^$/d'
+}
+
+# _mod_name_from_workshop
+#   Print the human-readable name for a Workshop mod id from its mod.cpp.
+_mod_name_from_workshop() {
+    local id="$1" lib_path
+    while IFS= read -r lib_path; do
+        [[ -z "$lib_path" ]] && continue
+        local mc="$lib_path/steamapps/workshop/content/107410/$id/mod.cpp"
+        if [[ -f "$mc" ]]; then
+            sed -n 's/^name[[:space:]]*=[[:space:]]*"\(.*\)";/\1/p' "$mc" | head -1
+            return 0
+        fi
+    done < <(_find_steam_libraries)
+    return 1
+}
+
+# _list_installed_mods
+#   List every Workshop mod installed for Arma 3 across all Steam
+#   libraries, with human-readable names from mod.cpp.
+_list_installed_mods() {
+    local lib_path ws found=0
+    while IFS= read -r lib_path; do
+        [[ -z "$lib_path" ]] && continue
+        while IFS= read -r ws; do
+            [[ -z "$ws" ]] && continue
+            local id
+            id="$(basename "$ws")"
+            # Skip the content/107410 root itself; real mod dirs are the
+            # Workshop item ids below it.
+            [[ "$id" == "107410" ]] && continue
+            local name
+            name="$(_mod_name_from_workshop "$id")"
+            if [[ -n "$name" ]]; then
+                printf "  %-12s %s\n" "$id" "$name"
+            else
+                printf "  %-12s %s\n" "$id" "(no mod.cpp)"
+            fi
+            found=1
+        done < <(find "$lib_path/steamapps/workshop/content/107410" -maxdepth 1 -type d 2>/dev/null | sort)
+    done < <(_find_steam_libraries)
+    if [[ "$found" == 0 ]]; then
+        echo "  (no Workshop mods installed for Arma 3)"
+    fi
+}
+
+# _list_loaded_mods
+#   List the mods loaded in the current (or most recent) Arma session,
+#   from the RPT header. Flags ACRE2 and TFAR presence.
+_list_loaded_mods() {
+    local mods
+    mods="$(_parse_loaded_mods)"
+    if [[ -z "$mods" ]]; then
+        echo "  (no RPT log found – launch Arma 3 first)"
+        return 1
+    fi
+    local count=0 acre2=0 tfar=0
+    while IFS= read -r id; do
+        [[ -z "$id" ]] && continue
+        local name
+        name="$(_mod_name_from_workshop "$id")"
+        if [[ -z "$name" ]]; then
+            name="(local mod or no mod.cpp)"
+        fi
+        printf "  %-12s %s\n" "$id" "$name"
+        count=$((count + 1))
+        case "$id" in
+            751965892) acre2=1 ;;
+            894678801|620019431) tfar=1 ;;
+        esac
+    done <<< "$mods"
+    echo ""
+    echo "  Total mods loaded: $count"
+    if [[ "$acre2" == 1 ]]; then
+        echo -e "  \e[32m[OK]\e[0m     ACRE2 is loaded"
+    else
+        echo -e "  \e[33m[NOT LOADED]\e[0m ACRE2"
+    fi
+    if [[ "$tfar" == 1 ]]; then
+        echo -e "  \e[32m[OK]\e[0m     TFAR is loaded"
+    else
+        echo -e "  \e[33m[NOT LOADED]\e[0m TFAR"
+    fi
     return 0
 }
 
@@ -1927,6 +2191,13 @@ if [[ -z "$*" ]]; then
     _ensure_steam_launch_options
     _check_prefix_version
     _remove_gamepad_plugin
+    # Warn if Arma is not running, since the radio plugins cannot connect
+    # to a game that is not up. Non-blocking: the user may start Arma after
+    # TeamSpeak.
+    if ! pgrep -f "arma3_x64" >/dev/null 2>&1; then
+        echo -e "\e[33mNote\e[0m: Arma 3 does not appear to be running."
+        echo "Start Arma 3 first, or the radio plugins cannot connect."
+    fi
     _checkpath "$TSPATH" "TeamSpeak 3"
     echo ""
     echo "------------------------------------------------------------"
@@ -2308,6 +2579,54 @@ case "$1" in
     ;;
 
     # -------------------------------------------------------------------------
+    "listmods")
+    # -------------------------------------------------------------------------
+    # List installed and/or loaded mods for debugging.
+    #
+    #   listmods            – show both installed and loaded
+    #   listmods installed  – only Workshop mods installed on disk
+    #   listmods loaded     – only the mods in the current/last session
+    echo ""
+    echo "================================================================"
+    echo " Arma 3 Mods"
+    echo "================================================================"
+    echo ""
+    if [[ "$2" == "installed" ]]; then
+        echo "Installed Workshop mods:"
+        _list_installed_mods
+    elif [[ "$2" == "loaded" ]]; then
+        echo "Mods loaded in the latest Arma 3 session:"
+        _list_loaded_mods
+    else
+        echo "Mods loaded in the latest Arma 3 session:"
+        _list_loaded_mods
+        echo ""
+        echo "Installed Workshop mods:"
+        _list_installed_mods
+    fi
+    echo ""
+    echo "================================================================"
+    echo ""
+    ;;
+
+    # -------------------------------------------------------------------------
+    "acremod")
+    # -------------------------------------------------------------------------
+    # Install the ACRE2 plugin into the prefix TeamSpeak install. ACRE2
+    # normally auto-installs its plugin when the mod loads, but that can
+    # fail when TeamSpeak is installed later. This is the repair path.
+    _install_acre2_plugin
+    ;;
+
+    # -------------------------------------------------------------------------
+    "acrecheck")
+    # -------------------------------------------------------------------------
+    # Diagnose why the radio plugins cannot talk to Arma 3 (the 'cannot
+    # find game instance' error). Names the exact cause and fix.
+    _check_radio_connection
+    ;;
+
+    # -------------------------------------------------------------------------
     "tfarmod")
     # -------------------------------------------------------------------------
     # Install the Task Force Radio plugin into the prefix TeamSpeak install.
@@ -2395,6 +2714,18 @@ case "$1" in
         echo "     Check all required system packages (GStreamer, winetricks,"
         echo "     curl, Vulkan tools) plus the BattlEye runtime, the noexec"
         echo "     mount check, and the ACRE2/TFAR radio plugins."
+        echo ""
+        echo " ./Arma3Helper.sh listmods"
+        echo "     List mods installed and mods loaded in the latest session."
+        echo "     Use 'listmods loaded' or 'listmods installed' for one list."
+        echo ""
+        echo " ./Arma3Helper.sh acrecheck"
+        echo "     Diagnose why radio plugins cannot find the Arma 3 game"
+        echo "     instance: Arma running, container path shared, mod loaded."
+        echo ""
+        echo " ./Arma3Helper.sh acremod"
+        echo "     Install the ACRE2 plugin manually. ACRE2 normally installs"
+        echo "     it automatically; use this when auto-install failed."
         echo ""
         echo " ./Arma3Helper.sh tfarmod"
         echo "     Install the Task Force Radio plugin into the prefix"
