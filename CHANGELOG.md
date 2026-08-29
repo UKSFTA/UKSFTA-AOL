@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-08-29
+
+### Added
+
+- `listmods` lists installed and loaded mods. The loaded list is read from
+  the running Arma 3 process via `/proc`, with the RPT log header as a
+  fallback after the game exits.
+- `acrecheck` diagnoses why radio plugins cannot find the game instance.
+  It checks Arma is running, the container path is shared, and the radio
+  mod is in the loaded list.
+- `acremod` manually installs the ACRE2 plugin when auto-install fails.
+- `verifyradio` checks the full chain for both radio mods: Workshop mod
+  downloaded, mod loaded in the game, plugin installed in TeamSpeak. Each
+  failing stage names the exact fix.
+- The launch path warns when Arma 3 is not running.
+
+### Changed
+
+- `checkdeps` suggests `acremod` when the ACRE2 plugin is missing.
+- Guide: Chapter 8 documents `acremod`, `acrecheck`, `listmods`, and
+  `verifyradio`; manual plugin copy instructions replaced by `acremod`.
+
 ## [2.2.1] - 2026-08-29
 
 ### Added
@@ -180,7 +202,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.1...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.3.0...master
+[2.3.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.2...v2.2.0
 [2.1.2]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.1...v2.1.2
