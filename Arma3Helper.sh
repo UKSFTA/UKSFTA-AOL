@@ -167,6 +167,7 @@ else
 fi
 
 _ensure_config
+# shellcheck source=/dev/null
 source "$USERCONFIG/config"
 
 # -----------------------------------------------------------------------------
@@ -749,6 +750,36 @@ else
             fi
         done
     done < <(_find_steam_libraries)
+
+    # Fallback: glob may miss directories with unusual naming.  Use find
+    # (same approach as listproton) to catch anything the glob missed.
+    if [[ -z "$PROTONEXEC" ]]; then
+        while IFS= read -r lib_path; do
+            _sa="$lib_path/steamapps"
+            if [[ -d "$_sa/common" ]]; then
+                while IFS= read -r _dir; do
+                    _ver="$(basename "$_dir")"
+                    if [[ -f "$_dir/proton" ]] && \
+                       [[ "$_ver" == *"Proton $PROTON_OFFICIAL_VERSION"* ]] && \
+                       [[ "$_ver" != *"Runtime"* ]] && \
+                       [[ "$_ver" != *"BattlEye"* ]]; then
+                        PROTONEXEC="$_dir/proton"
+                        break 2
+                    fi
+                done < <(find "$_sa/common" -maxdepth 1 -type d -name "Proton*")
+            fi
+        done < <(_find_steam_libraries)
+    fi
+fi
+
+# Bail out early if we could not find any Proton executable.
+if [[ -z "$PROTONEXEC" ]]; then
+    echo "Error: No Proton executable found."
+    echo "  Searched for:  Proton $PROTON_OFFICIAL_VERSION"
+    echo "  Ensure Proton is installed in your Steam library."
+    echo "  Run './Arma3Helper.sh listproton' to see what is available."
+    echo "  Set PROTON_OFFICIAL_VERSION in your config to match an installed version."
+    exit 1
 fi
 
 # -----------------------------------------------------------------------------
