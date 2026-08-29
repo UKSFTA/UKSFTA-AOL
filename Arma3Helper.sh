@@ -40,7 +40,7 @@
 # Original Repository: https://github.com/ninelore/armaonlinux
 # Support:    https://discord.gg/p28Ra36  (ArmaOnUnix Discord)
 
-_SCRIPTVER="2.1.1"
+_SCRIPTVER="2.1.2"
 
 ###############################################################################
 ## USER CONFIGURATION
@@ -1364,9 +1364,11 @@ case "$1" in
         echo ""
         echo "  Step 3 – Complete the installation."
         echo ""
-        echo "  Step 4 – After installation, disable this TS3 plugin:"
-        echo -e "             \e[33mGamepad and Joystick Hotkey Support\e[0m"
-        echo "           (Tools > Options > Addons)"
+        echo "  Step 4 – (automatic) The crashing Gamepad and Joystick plugin"
+        echo "           is deleted automatically at every launch."
+        echo ""
+        echo "  If the installer hangs at 'fsync: up and running' with"
+        echo "  Proton Experimental, use a stable Proton version instead."
         echo ""
         echo "============================================================"
         echo ""

@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-08-29
+
+### Changed
+
+- Install help and guide document the Proton Experimental installer hang
+  at `fsync: up and running` (upstream issue #36). Use a stable Proton.
+- Install help notes the gamepad plugin is deleted automatically, replacing
+  the manual disable step.
+- CI actions bumped to current major versions (checkout v7,
+  upload-pages-artifact v5, deploy-pages v5). Closes dependabot PRs.
+
 ## [2.1.1] - 2026-08-29
 
 ### Added
@@ -122,7 +133,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.1...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.2...master
+[2.1.2]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.0.1...v2.0.2

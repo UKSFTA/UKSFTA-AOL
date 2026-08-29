@@ -631,6 +631,8 @@ TeamSpeak 3 should open. If it does not, run the debug command and check that th
 
 Look for the line labelled **TS3 executable found**. If it reads `NO`, TeamSpeak 3 was not installed to the expected path. The most common cause is selecting "Install for current user only" instead of "Install for All Users" during installation.
 
+If the installer hangs at the message `fsync: up and running`, you are likely using Proton Experimental. Switch Arma 3 to a stable Proton version in Steam (Chapter 3), then run the install command again.
+
 ## Configuring TeamSpeak 3 After Installation
 
 Once TeamSpeak 3 is running, set the following options before connecting to any server.
