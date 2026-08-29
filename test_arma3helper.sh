@@ -426,7 +426,7 @@ PROTON_CUSTOM_VERSION="Proton-FakeVersion99"
 ESYNC=true
 FSYNC=true
 EOFCFG
-_output_11=$(HOME="$MOCK_HOME_11" "$HELPER" debug 2>&1 || true)
+_output_11=$(HOME="$MOCK_HOME_11" XDG_CONFIG_HOME="$MOCK_HOME_11/.config" "$HELPER" debug 2>&1 || true)
 if echo "$_output_11" | grep -q "No Proton executable found" && \
    echo "$_output_11" | grep -q "Proton-FakeVersion99"; then
     pass "Bad custom version name -> clean error with version shown"
@@ -446,7 +446,7 @@ PROTON_CUSTOM_VERSION="/tmp/totally_fake_proton"
 ESYNC=true
 FSYNC=true
 EOFCFG
-_output_11b=$(HOME="$MOCK_HOME_11b" "$HELPER" debug 2>&1 || true)
+_output_11b=$(HOME="$MOCK_HOME_11b" XDG_CONFIG_HOME="$MOCK_HOME_11b/.config" "$HELPER" debug 2>&1 || true)
 if echo "$_output_11b" | grep -q "No Proton executable found" && \
    echo "$_output_11b" | grep -q "/tmp/totally_fake_proton"; then
     pass "Bad absolute path -> clean error with path shown"
@@ -471,7 +471,7 @@ ESYNC=true
 FSYNC=true
 EOFCFG
 # The script should NOT show "Proton version mismatch" when custom version is set
-_output_12=$(HOME="$MOCK_HOME_12" "$HELPER" debug 2>&1 || true)
+_output_12=$(HOME="$MOCK_HOME_12" XDG_CONFIG_HOME="$MOCK_HOME_12/.config" "$HELPER" debug 2>&1 || true)
 if ! echo "$_output_12" | grep -q "Proton version mismatch"; then
     pass "PROTON_CUSTOM_VERSION set -> no false mismatch warning"
 else
