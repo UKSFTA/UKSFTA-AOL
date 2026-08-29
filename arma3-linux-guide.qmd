@@ -391,12 +391,21 @@ To open a mod preset, right-click on the mod list in the Unix Launcher. You can 
 
 ## What the Script Does
 
-The Arma3Helper script is a command-line tool that manages the interface between Linux and Arma 3's Wine prefix. It has four main functions:
+The Arma3Helper script is a command-line tool that manages the interface between Linux and Arma 3's Wine prefix. Its main functions are:
 
 - Launches TeamSpeak 3 inside the correct Wine environment.
 - Installs TeamSpeak 3 into Arma's Wine prefix.
 - Runs winetricks and winecfg inside the Arma prefix.
 - Provides diagnostic and dependency-checking tools.
+
+The script also applies several automatic protections at every launch:
+
+- **Setup wizard**: On first use, offers to check dependencies and install the recommended Windows components.
+- **Prefix protection**: Warns if the configured Proton version differs from the version that created the prefix. Changing Proton versions can break audio and plugins.
+- **Gamepad plugin removal**: Deletes the crashing Gamepad and Joystick Hotkey Support plugin from the prefix (Chapter 7).
+- **S: drive preservation**: Exports the variables Proton needs so the game's `S:` drive survives (Chapter 5, "Steam Compatibility Paths").
+- **Launch options check**: Verifies Arma's Steam launch options expose the paths ACRE2 and TFAR need, and patches them if missing.
+- **Single-instance guard**: Refuses a second launch while one instance is already running, to protect the prefix.
 
 The script is required for ACRE2 and TFAR. Without it, TeamSpeak 3 will not communicate with Arma 3.
 
@@ -509,6 +518,8 @@ After configuring the script, run the dependency check:
 
 The check reports the status of all required packages. If any are missing, it prints the exact install command to use. Resolve all missing packages before continuing.
 
+The check also verifies that the **Proton BattlEye Runtime** is installed in one of your Steam libraries. BattlEye-protected servers require this component for the client. If it is missing, install it from Steam's **Library → Tools** list. The check additionally warns if your Steam library sits on a drive mounted with `noexec`, which prevents Proton and mods from running there.
+
 ## Available Script Commands
 
 The following commands are available. Run `./Arma3Helper.sh help` to see this list at any time.
@@ -522,7 +533,7 @@ The following commands are available. Run `./Arma3Helper.sh help` to see this li
 - **`./Arma3Helper.sh listproton`**: List available Proton versions
 - **`./Arma3Helper.sh launchopts`**: Make sure Arma's Steam launch options expose the host paths ACRE2/TFAR need (required since Steam Linux Runtime 4 isolates the game container)
 - **`./Arma3Helper.sh debug`**: Print diagnostic information
-- **`./Arma3Helper.sh update`**: Update script from GitHub
+- **`./Arma3Helper.sh update`**: Update script from GitHub (keeps a backup at `Arma3Helper.sh.bak-arma3helper`)
 - **`./Arma3Helper.sh createconfig`**: Create external config file
 - **`./Arma3Helper.sh help`**: Show usage information
 
