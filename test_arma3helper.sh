@@ -419,7 +419,85 @@ fi
 echo ""
 
 # ===========================================================================
-# Summary
+echo "── 10. Version file path: reads \$COMPAT_DATA_PATH/version ──"
+# ===========================================================================
+# Verify the script reads the correct version file path
+_script_version_path=$(grep -n '_prefix_version_file=\|version_file=' "$HELPER" | head -2)
+if echo "$_script_version_path" | grep -q 'COMPAT_DATA_PATH/version' && \
+   ! echo "$_script_version_path" | grep -q 'COMPAT_DATA_PATH/\.\./version'; then
+    pass "Version file path uses \$COMPAT_DATA_PATH/version (not ../version)"
+else
+    fail "Version file path still uses wrong ../version path"
+fi
+
+# ===========================================================================
+echo "── 11. Proton guard: rejects non-executable paths ──"
+# ===========================================================================
+# Test that the script errors cleanly when custom proton doesn't exist
+MOCK_HOME_11=$(mktemp -d)
+mkdir -p "$MOCK_HOME_11/.config/arma3helper"
+cat > "$MOCK_HOME_11/.config/arma3helper/config" << EOFCFG
+PROTON_OFFICIAL_VERSION=""
+COMPAT_DATA_PATH=""
+STEAM_LIBRARY_PATH=""
+PROTON_CUSTOM_VERSION="Proton-FakeVersion99"
+ESYNC=true
+FSYNC=true
+EOFCFG
+_output_11=$(HOME="$MOCK_HOME_11" "$HELPER" debug 2>&1 || true)
+if echo "$_output_11" | grep -q "No Proton executable found" && \
+   echo "$_output_11" | grep -q "Proton-FakeVersion99"; then
+    pass "Bad custom version name -> clean error with version shown"
+else
+    fail "Bad custom version name -> no error or wrong message"
+fi
+rm -rf "$MOCK_HOME_11"
+
+# Test absolute path to non-existent file
+MOCK_HOME_11b=$(mktemp -d)
+mkdir -p "$MOCK_HOME_11b/.config/arma3helper"
+cat > "$MOCK_HOME_11b/.config/arma3helper/config" << EOFCFG
+PROTON_OFFICIAL_VERSION=""
+COMPAT_DATA_PATH=""
+STEAM_LIBRARY_PATH=""
+PROTON_CUSTOM_VERSION="/tmp/totally_fake_proton"
+ESYNC=true
+FSYNC=true
+EOFCFG
+_output_11b=$(HOME="$MOCK_HOME_11b" "$HELPER" debug 2>&1 || true)
+if echo "$_output_11b" | grep -q "No Proton executable found" && \
+   echo "$_output_11b" | grep -q "/tmp/totally_fake_proton"; then
+    pass "Bad absolute path -> clean error with path shown"
+else
+    fail "Bad absolute path -> no error or wrong message"
+fi
+rm -rf "$MOCK_HOME_11b"
+
+# ===========================================================================
+echo "── 12. Auto-detect skipped when PROTON_CUSTOM_VERSION set ──"
+# ===========================================================================
+# When PROTON_CUSTOM_VERSION is set, auto-detect should not run and
+# PROTON_OFFICIAL_VERSION should NOT be set to a fallback value
+MOCK_HOME_12=$(mktemp -d)
+mkdir -p "$MOCK_HOME_12/.config/arma3helper"
+cat > "$MOCK_HOME_12/.config/arma3helper/config" << EOFCFG
+PROTON_OFFICIAL_VERSION=""
+COMPAT_DATA_PATH=""
+STEAM_LIBRARY_PATH=""
+PROTON_CUSTOM_VERSION="Proton-CachyOS Latest"
+ESYNC=true
+FSYNC=true
+EOFCFG
+# The script should NOT show "Proton version mismatch" when custom version is set
+_output_12=$(HOME="$MOCK_HOME_12" "$HELPER" debug 2>&1 || true)
+if ! echo "$_output_12" | grep -q "Proton version mismatch"; then
+    pass "PROTON_CUSTOM_VERSION set -> no false mismatch warning"
+else
+    fail "PROTON_CUSTOM_VERSION set -> still shows mismatch warning"
+fi
+rm -rf "$MOCK_HOME_12"
+
+echo ""
 # ===========================================================================
 TOTAL=$((PASS + FAIL + SKIP))
 echo "═══════════════════════════════════════════════════════════════"

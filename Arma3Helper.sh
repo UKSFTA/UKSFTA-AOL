@@ -40,7 +40,7 @@
 # Original Repository: https://github.com/ninelore/armaonlinux
 # Support:    https://discord.gg/p28Ra36  (ArmaOnUnix Discord)
 
-_SCRIPTVER="2v0-0"
+_SCRIPTVER="2.0.0"
 
 ###############################################################################
 ## USER CONFIGURATION
@@ -131,9 +131,35 @@ FSYNC=true
 # -----------------------------------------------------------------------------
 # VERSIONING
 # -----------------------------------------------------------------------------
-# Fetch the latest release tag from GitHub API
-_get_latest_version() {
-    curl -fs --max-time 5 https://api.github.com/repos/UKSFTA/UKSFTA-AOL/releases/latest | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/'
+# Check for script updates (once per day max)
+_update_stamp() { echo "$USERCONFIG/.last_update_check"; }
+
+_check_for_update() {
+    # Skip if no curl or if checked within last 24 hours
+    command -v curl &>/dev/null || return 0
+    local stamp
+    stamp="$(_update_stamp)"
+    if [[ -f "$stamp" ]]; then
+        local age
+        age=$(( $(date +%s) - $(stat -c %Y "$stamp" 2>/dev/null || echo 0) ))
+        (( age < 86400 )) && return 0
+    fi
+
+    # Fetch remote script header and extract its _SCRIPTVER
+    local remote_ver
+    remote_ver=$(curl -fs --max-time 5 \
+        "https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh" \
+        2>/dev/null | grep -m1 '^_SCRIPTVER=' | cut -d'"' -f2)
+
+    # Record check time regardless of result
+    date +%s > "$stamp" 2>/dev/null
+
+    if [[ -n "$remote_ver" && "$remote_ver" != "$_SCRIPTVER" ]]; then
+        echo ""
+        echo -e "\e[33mA new version of Arma3Helper is available: $_SCRIPTVER → $remote_ver\e[0m"
+        echo "  Run './Arma3Helper.sh update' to update."
+        echo ""
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -685,10 +711,10 @@ if [[ "$PROTON_OFFICIAL_VERSION" == "Proton Experimental" || \
       "$PROTON_OFFICIAL_VERSION" == "Experimental" ]]; then
     PROTON_OFFICIAL_VERSION="- Experimental"
     IS_EXPERIMENTAL=true
-elif [[ -z "$PROTON_OFFICIAL_VERSION" ]]; then
+elif [[ -z "$PROTON_OFFICIAL_VERSION" && -z "$PROTON_CUSTOM_VERSION" ]]; then
     # Auto-detect from the prefix: read the version file that records which
     # Proton created Arma 3's Wine prefix, then match it to an installed build.
-    _prefix_version_file="$COMPAT_DATA_PATH/../version"
+    _prefix_version_file="$COMPAT_DATA_PATH/version"
     _prefix_version=""
     if [[ -f "$_prefix_version_file" ]]; then
         _prefix_version="$(cat "$_prefix_version_file")"
@@ -879,10 +905,7 @@ if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
                 break
             fi
         done < <(_find_steam_libraries)
-        # Fallback to standard path if not found in any library
-        if [[ -z "$PROTONEXEC" ]]; then
-            PROTONEXEC="$_STEAM_ROOT/compatibilitytools.d/$PROTON_CUSTOM_VERSION/proton"
-        fi
+        # No blind fallback — only set PROTONEXEC if we actually found a working binary.
     fi
 else
     # Official Proton: search all Steam libraries for the matching version.
@@ -923,12 +946,17 @@ else
 fi
 
 # Bail out early if we could not find any Proton executable.
-if [[ -z "$PROTONEXEC" ]]; then
+if [[ -z "$PROTONEXEC" || ! -x "$PROTONEXEC" ]]; then
     echo "Error: No Proton executable found."
-    echo "  Searched for:  Proton $PROTON_OFFICIAL_VERSION"
+    if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
+        echo "  Custom version:  $PROTON_CUSTOM_VERSION"
+        echo "  Ensure this version is installed in compatibilitytools.d."
+    else
+        echo "  Searched for:  Proton $PROTON_OFFICIAL_VERSION"
+    fi
     echo "  Ensure Proton is installed in your Steam library."
     echo "  Run './Arma3Helper.sh listproton' to see what is available."
-    echo "  Set PROTON_OFFICIAL_VERSION in your config to match an installed version."
+    echo "  Set PROTON_OFFICIAL_VERSION or PROTON_CUSTOM_VERSION in your config."
     exit 1
 fi
 
@@ -938,7 +966,7 @@ fi
 # Check if the prefix version matches the configured Proton version.
 # Must run after COMPAT_DATA_PATH and PROTON_OFFICIAL_VERSION are resolved.
 _check_prefix_version() {
-    local version_file="$COMPAT_DATA_PATH/../version"
+    local version_file="$COMPAT_DATA_PATH/version"
     if [[ -f "$version_file" ]]; then
         local stored_version
         stored_version=$(cat "$version_file")
@@ -955,7 +983,8 @@ _check_prefix_version
 
 # Run setup wizard if config is default and Arma prefix exists.
 # Must run after COMPAT_DATA_PATH is resolved.
-_setup_wizard
+# NOTE: _setup_wizard is called only in the no-args launch path (line ~1117)
+# to avoid prompting on informational commands like listproton, help, etc.
 
 # -----------------------------------------------------------------------------
 # Ensure Arma's Steam launch options set XDG_RUNTIME_DIR (ACRE2/TFAR pipe fix).
@@ -1086,6 +1115,7 @@ PYEOF
 # No arguments: launch TeamSpeak 3 inside Arma's Wine prefix.
 # Arma 3 must be running first – TeamSpeak needs the game's audio session.
 if [[ -z "$*" ]]; then
+    _setup_wizard
     _ensure_steam_launch_options
     _checkpath "$TSPATH" "TeamSpeak 3"
     echo ""
@@ -1098,6 +1128,9 @@ if [[ -z "$*" ]]; then
     "$PROTONEXEC" run "$TSPATH"
     exit $?
 fi
+
+# Check for script updates (once per day, non-blocking)
+_check_for_update
 
 case "$1" in
 
@@ -1301,11 +1334,19 @@ case "$1" in
         echo "================================================================"
         echo ""
 
-        # Check for updates via GitHub API
+        echo "Script version:         $_SCRIPTVER"
+
+        # Check for updates via GitHub (ignore cache — user explicitly asked)
         if command -v curl &>/dev/null; then
-            _UPVER=$(_get_latest_version)
-            if [[ -n "$_UPVER" ]]; then
-                echo "Latest version on GitHub: $_UPVER"
+            _remote_ver=$(curl -fs --max-time 5 \
+                "https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh" \
+                2>/dev/null | grep -m1 '^_SCRIPTVER=' | cut -d'"' -f2)
+            if [[ -n "$_remote_ver" ]]; then
+                if [[ "$_remote_ver" == "$_SCRIPTVER" ]]; then
+                    echo "GitHub version:         $_remote_ver (up to date)"
+                else
+                    echo "GitHub version:         $_remote_ver (update available!)"
+                fi
             fi
         fi
 
