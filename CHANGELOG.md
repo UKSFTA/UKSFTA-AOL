@@ -7,8 +7,26 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-29
+
+### Added
+
+- `prefix doctor`: read-only health check of Arma's Wine prefix. Reports the
+  version file, Windows system directory, drive mappings, creation state,
+  wineserver, and mount options. Gives a pass or fail verdict.
+- `prefix reset`: in-place prefix repair using Proton's own `destroyprefix`
+  verb. Rebuilds Proton's system files and preserves all user data.
+- `prefix reset --full`: recreates the prefix. Backs up both profile folders
+  (`Documents/Arma 3` and `Documents/Arma 3 - Other Profiles`), mod presets,
+  TeamSpeak config and install, then moves the old prefix aside. Arma 3 has
+  no Steam Cloud, so the backup is the only copy of profiles and loadouts.
+
 ### Changed
 
+- Shellcheck now runs with full strictness. The SC1090/SC1091 exclusions
+  were removed; both scripts pass with zero exclusions and zero disable
+  directives.
+- Test suite: 54 tests, including prefix backup coverage.
 - Guide: removed `-exThreads`, `-enableHT`, and `-hugepages` advice. These
   reduce performance since Arma 2.20.
 - Guide: documented 64-bit default and 32-bit deprecation.
@@ -144,7 +162,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.2...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.0...master
+[2.2.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.2...v2.2.0
 [2.1.2]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.0.2...v2.1.0
