@@ -326,8 +326,11 @@ _remove_gamepad_plugin() {
         "$plugins_root/users/steamuser/AppData/Roaming/TS3Client/plugins" \
         "$plugins_root/Program Files/TeamSpeak 3 Client/plugins"; do
         if [[ -d "$candidate" ]]; then
-            # shellcheck disable=SC2012
-            for f in "$candidate"/gamepad_joystick*.dll "$candidate"/gamepad_joystick*; do
+            # One glob covers both the plugin DLL and its directory, since the
+            # TS3 plugin installs as either gamepad_joystick.dll or a
+            # gamepad_joystick/ folder depending on version.
+            local f
+            for f in "$candidate"/gamepad_joystick*; do
                 if [[ -e "$f" ]]; then
                     rm -rf "$f"
                     echo "Removed crashing plugin: $(basename "$f")"
@@ -1148,6 +1151,255 @@ _check_prefix_version() {
     fi
 }
 
+# -----------------------------------------------------------------------------
+# PREFIX DOCTOR
+# -----------------------------------------------------------------------------
+# Read-only health check for Arma's Wine prefix. Prints the key marker files,
+# checks the Windows system directory, and reports mount options. Exits 0 when
+# the prefix looks healthy, 1 when a check fails.
+_prefix_doctor() {
+    local pfx="$COMPAT_DATA_PATH/pfx"
+    local issues=0
+
+    echo ""
+    echo "================================================================"
+    echo " Prefix Doctor – $COMPAT_DATA_PATH"
+    echo "================================================================"
+    echo ""
+
+    echo "--- Marker files ---"
+    if [[ -f "$COMPAT_DATA_PATH/version" ]]; then
+        echo "version file:             $(cat "$COMPAT_DATA_PATH/version")"
+    else
+        echo -e "\e[31mMISSING\e[0m version file. Prefix was never created."
+        ((issues++))
+    fi
+    if [[ -f "$COMPAT_DATA_PATH/config_info" ]]; then
+        echo "config_info:              present"
+    else
+        echo -e "\e[33mWARN\e[0m config_info missing. Proton may rebuild on next launch."
+    fi
+
+    echo ""
+    echo "--- Windows system directory ---"
+    local sys32="$pfx/drive_c/windows/system32"
+    if [[ -d "$sys32" ]]; then
+        local kernel32 wineboot
+        kernel32=$(test -f "$sys32/kernel32.dll" && echo present || echo MISSING)
+        wineboot=$(test -f "$sys32/wineboot.exe" && echo present || echo MISSING)
+        echo "system32:                 exists"
+        echo "kernel32.dll:             $kernel32"
+        echo "wineboot.exe:             $wineboot"
+        [[ "$kernel32" == "MISSING" ]] && ((issues++))
+        [[ "$wineboot" == "MISSING" ]] && ((issues++))
+    else
+        echo -e "\e[31mMISSING\e[0m system32 directory. Prefix is corrupt."
+        ((issues++))
+    fi
+
+    echo ""
+    echo "--- Drive mappings (dosdevices) ---"
+    if [[ -d "$pfx/dosdevices" ]]; then
+        local drive
+        for drive in "$pfx/dosdevices"/[a-z]:; do
+            [[ -e "$drive" ]] && echo "  $(basename "$drive")"
+        done
+        # c: must exist and be a real directory or symlink
+        if [[ -e "$pfx/dosdevices/c:" ]]; then
+            echo "c: drive:                 mapped"
+        else
+            echo -e "\e[31mMISSING\e[0m c: drive mapping"
+            ((issues++))
+        fi
+    else
+        echo -e "\e[31mMISSING\e[0m dosdevices directory"
+        ((issues++))
+    fi
+
+    echo ""
+    echo "--- Prefix creation state ---"
+    if [[ -f "$pfx/creation_sync_guard" ]]; then
+        echo "creation_sync_guard:      present"
+        echo "                          Not necessarily an error. Some Proton"
+        echo "                          builds (e.g. CachyOS) leave this file in"
+        echo "                          place on healthy prefixes. Only treat it"
+        echo "                          as a problem if other checks also fail."
+    else
+        echo "creation_sync_guard:      absent"
+    fi
+
+    echo ""
+    echo "--- Wineserver ---"
+    if pgrep -x wineserver &>/dev/null; then
+        echo "wineserver:               running"
+    else
+        echo "wineserver:               not running"
+    fi
+
+    echo ""
+    echo "--- Filesystem mount ---"
+    local mount_point
+    mount_point=$(df -P "$COMPAT_DATA_PATH" 2>/dev/null | awk 'NR==2 {print $6}')
+    if [[ -n "$mount_point" ]]; then
+        local opts
+        opts=$(mount | awk -v mp="$mount_point" '$3 == mp {print $6}' | tr -d '()')
+        echo "mount point:              $mount_point"
+        echo "mount options:            ${opts:-unknown}"
+        if [[ "$opts" == *noexec* ]]; then
+            echo -e "\e[31mFAIL\e[0m mounted noexec. Proton cannot run here."
+            ((issues++))
+        elif [[ "$opts" == *nosuid* || "$opts" == *nodev* ]]; then
+            echo -e "\e[33mWARN\e[0m restricted mount options (nosuid/nodev)."
+        fi
+        case "$opts" in
+            *ntfs*|*fuseblk*) echo -e "\e[33mWARN\e[0m NTFS/fuseblk filesystem. Symlinks and exec may be limited." ;;
+        esac
+    fi
+
+    echo ""
+    if (( issues > 0 )); then
+        echo -e "\e[31mVerdict: $issues issue(s) found.\e[0m"
+        echo "Try './Arma3Helper.sh prefix reset' to repair in place."
+        exit 1
+    else
+        echo -e "\e[32mVerdict: prefix looks healthy.\e[0m"
+        exit 0
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# PREFIX RESET
+# -----------------------------------------------------------------------------
+# Two modes:
+#   inplace – Proton's destroyprefix removes only the tracked Wine system
+#             files; the next Arma launch re-copies them. User data in
+#             drive_c (Documents, AppData, Program Files) is preserved.
+#   full    – move the whole compatdata aside and let Proton recreate it.
+#             Arma 3 has no Steam Cloud, so all user data is backed up first:
+#             profiles, loadouts, missions, TS3 config, TS3 install, plugins.
+_prefix_reset() {
+    local mode="$1"
+    local pfx="$COMPAT_DATA_PATH/pfx"
+    local backup_dir
+
+    if [[ ! -d "$pfx" ]]; then
+        echo -e "\e[31mError\e[0m: No prefix found at $pfx"
+        echo "Launch Arma 3 once from Steam to create it."
+        exit 1
+    fi
+
+    echo ""
+    echo "================================================================"
+    if [[ "$mode" == "full" ]]; then
+        echo " Prefix Reset (full) – recreate prefix"
+    else
+        echo " Prefix Reset (in-place) – repair Wine system files"
+    fi
+    echo "================================================================"
+    echo ""
+    echo "Arma 3 stores profiles, loadouts, missions, and settings in"
+    echo "Documents INSIDE the prefix. There is no Steam Cloud for Arma 3."
+    echo ""
+
+    if [[ "$mode" == "full" ]]; then
+        echo "This will back up your user data, then move the whole prefix aside."
+        echo "A fresh prefix is created on your next Arma 3 launch."
+    else
+        echo "This removes Proton's system files and rebuilds them in place."
+        echo "Your Documents, AppData, and Program Files data is preserved."
+    fi
+    echo ""
+    _confirmation "Continue?"
+
+    # Stop any running Wine processes so the prefix is not in use.
+    if [[ -n "$PROTONEXEC" && -x "$PROTONEXEC" ]]; then
+        echo "Stopping wineserver..."
+        "$PROTONEXEC" run wineserver -k 2>/dev/null
+        sleep 1
+    fi
+
+    if [[ "$mode" == "full" ]]; then
+        # ---- FULL RESET: back up user data, then move compatdata aside ----
+        backup_dir="$HOME/Arma3Helper-prefix-backup-$(date +%Y%m%d-%H%M%S)"
+        mkdir -p "$backup_dir"
+        local userhome="$pfx/drive_c/users/steamuser"
+
+        # Documents/Arma 3 – the default profile: loadouts, missions, saves,
+        # settings, screenshots. Arma 3 has no Steam Cloud, so this is the
+        # only copy that exists.
+        if [[ -d "$userhome/Documents/Arma 3" ]]; then
+            cp -a "$userhome/Documents/Arma 3" "$backup_dir/"
+            echo "Backed up default profile:   $backup_dir/Arma 3"
+        else
+            echo "No default Arma 3 profile found."
+        fi
+
+        # Documents/Arma 3 - Other Profiles – one folder per custom profile.
+        # Named profiles live here, not in the default folder.
+        if [[ -d "$userhome/Documents/Arma 3 - Other Profiles" ]]; then
+            cp -a "$userhome/Documents/Arma 3 - Other Profiles" "$backup_dir/"
+            echo "Backed up custom profiles:   $backup_dir/Arma 3 - Other Profiles"
+        else
+            echo "No custom profiles found."
+        fi
+
+        # AppData/Local/Arma 3 Launcher/Presets – mod preset files. Small and
+        # high value; rebuilding a modlist by hand is painful.
+        if [[ -d "$userhome/AppData/Local/Arma 3 Launcher/Presets" ]]; then
+            cp -a "$userhome/AppData/Local/Arma 3 Launcher/Presets" "$backup_dir/"
+            echo "Backed up mod presets:       $backup_dir/Presets"
+        fi
+
+        # TS3 config (Roaming) – identity, settings, bookmarks, plugins
+        if [[ -d "$userhome/AppData/Roaming/TS3Client" ]]; then
+            cp -a "$userhome/AppData/Roaming/TS3Client" "$backup_dir/"
+            echo "Backed up TS3 config:        $backup_dir/TS3Client"
+        fi
+
+        # TS3 install (Program Files) – the all-users install location
+        if [[ -d "$pfx/drive_c/Program Files/TeamSpeak 3 Client" ]]; then
+            cp -a "$pfx/drive_c/Program Files/TeamSpeak 3 Client" "$backup_dir/"
+            echo "Backed up TS3 install:       $backup_dir/TeamSpeak 3 Client"
+        fi
+
+        # Move the whole compatdata aside (delete = data loss, move = recoverable)
+        mv "$COMPAT_DATA_PATH" "${COMPAT_DATA_PATH}.old-$(date +%Y%m%d-%H%M%S)"
+        echo ""
+        echo -e "\e[32mPrefix moved aside. Backup saved to:\e[0m"
+        echo "  $backup_dir"
+        echo ""
+        echo "Next steps:"
+        echo "  1. Launch Arma 3 from Steam once – Proton creates a fresh prefix."
+        echo "  2. Run './Arma3Helper.sh winetricks Arma' to reinstall DLLs."
+        echo "  3. Restore your data from the backup if needed."
+        echo "  4. If everything works, delete the .old-* prefix folder."
+    else
+        # ---- IN-PLACE RESET: Proton's own tracked-file removal ----
+        echo "Running Proton's destroyprefix (removes tracked Wine system files)..."
+        if "$PROTONEXEC" destroyprefix 2>/dev/null; then
+            echo "destroyprefix complete."
+        else
+            echo -e "\e[33mWARN\e[0m destroyprefix reported a non-zero exit. Continuing anyway."
+        fi
+
+        # Remove the creation guard so Proton re-copies the system files on
+        # the next launch instead of treating the prefix as already created.
+        if [[ -f "$pfx/creation_sync_guard" ]]; then
+            rm -f "$pfx/creation_sync_guard"
+            echo "Removed creation_sync_guard."
+        fi
+
+        echo ""
+        echo -e "\e[32mIn-place reset complete.\e[0m"
+        echo "Your Documents, AppData, and Program Files data is preserved."
+        echo ""
+        echo "Next steps:"
+        echo "  1. Launch Arma 3 from Steam once – Proton rebuilds the system files."
+        echo "  2. Re-run './Arma3Helper.sh winetricks Arma' if audio/visuals break."
+        echo "  3. Reinstall TeamSpeak 3 only if it no longer launches."
+    fi
+}
+
 # Run setup wizard if config is default and Arma prefix exists.
 # Must run after COMPAT_DATA_PATH is resolved.
 # NOTE: _setup_wizard is called only in the no-args launch path (line ~1186)
@@ -1652,6 +1904,36 @@ case "$1" in
         ;;
 
     # -------------------------------------------------------------------------
+    "prefix")
+    # -------------------------------------------------------------------------
+    # Diagnose or repair Arma's Wine prefix.
+    #
+    #   prefix doctor        – read-only health check
+    #   prefix reset         – in-place repair, preserves user data
+    #   prefix reset --full  – recreate prefix, backs up user data first
+    #
+    # IMPORTANT: Arma 3 stores profiles, loadouts, missions, and settings in
+    # Documents inside the prefix, NOT on the host. There is no Steam Cloud
+    # for Arma 3. Any repair that recreates the prefix must back up that data
+    # first or it is lost permanently.
+    if [[ "$2" == "doctor" ]]; then
+        _prefix_doctor
+    elif [[ "$2" == "reset" ]]; then
+        if [[ "$3" == "--full" ]]; then
+            _prefix_reset full
+        else
+            _prefix_reset inplace
+        fi
+    else
+        echo "Usage:"
+        echo "  ./Arma3Helper.sh prefix doctor         Diagnose the prefix (read-only)"
+        echo "  ./Arma3Helper.sh prefix reset          Repair in place (preserves user data)"
+        echo "  ./Arma3Helper.sh prefix reset --full   Recreate prefix (backs up user data first)"
+        exit 1
+    fi
+    ;;
+
+    # -------------------------------------------------------------------------
     "createconfig")
     # -------------------------------------------------------------------------
     # Create an external config file at ~/.config/arma3helper/config.
@@ -1731,12 +2013,24 @@ case "$1" in
         echo "     Update this script from GitHub. This resets in-script edits."
         echo "     Use an external config file to avoid losing your settings."
         echo ""
-        echo " ./Arma3Helper.sh createconfig"
-        echo "     Create an external config at $USERCONFIG/config"
-        echo "     that persists across script updates."
-        echo ""
-        echo " ./Arma3Helper.sh help"
-        echo "     Show this help message."
+echo " ./Arma3Helper.sh createconfig"
+         echo "     Create an external config at $USERCONFIG/config"
+         echo "     that persists across script updates."
+         echo ""
+         echo " ./Arma3Helper.sh prefix doctor"
+         echo "     Diagnose Arma's Wine prefix (read-only). Checks the"
+         echo "     version file, system directory, drive mappings, and mount."
+         echo ""
+         echo " ./Arma3Helper.sh prefix reset"
+         echo "     Repair the prefix in place. Rebuilds Proton's system files"
+         echo "     and preserves your profiles, loadouts, and TeamSpeak data."
+         echo ""
+         echo " ./Arma3Helper.sh prefix reset --full"
+         echo "     Recreate the prefix. Backs up your Arma 3 profiles and"
+         echo "     TeamSpeak data first, then moves the old prefix aside."
+         echo ""
+         echo " ./Arma3Helper.sh help"
+         echo "     Show this help message."
         echo ""
         echo "================================================================"
         echo " Before reporting issues, check your settings and run:"

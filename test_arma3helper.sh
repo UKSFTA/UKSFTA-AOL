@@ -365,8 +365,8 @@ touch "$MOCK_PFX/Program Files/TeamSpeak 3 Client/plugins/gamepad_joystick/plugi
 _script_fn="$(sed -n '/^_remove_gamepad_plugin() {/,/^}/p' "$HELPER")"
 eval "$_script_fn"
 
-# shellcheck disable=SC2034  # consumed by the sourced function via $COMPAT_DATA_PATH
-COMPAT_DATA_PATH="$TMPDIR_TEST/gamepad-test"
+# Exported so the eval'd function can read it (SC2034-safe: export marks it used)
+export COMPAT_DATA_PATH="$TMPDIR_TEST/gamepad-test"
 if _remove_gamepad_plugin; then
     pass "Gamepad plugin removed from both locations"
 else
@@ -389,7 +389,82 @@ rm -rf "$TMPDIR_TEST/gamepad-test"
 echo ""
 
 # ===========================================================================
-echo "── 9. End-to-end: real system auto-detect ──"
+echo "── 9. Prefix reset backup coverage ──"
+# ===========================================================================
+# The full reset must back up BOTH profile folders (default + named),
+# mod presets, TS3 config, and TS3 install before moving the prefix aside.
+# Arma 3 has no Steam Cloud, so these folders are the only copy that exists.
+MOCK_COMPAT="$TMPDIR_TEST/prefix-reset/compatdata/107410"
+MOCK_USER="$MOCK_COMPAT/pfx/drive_c/users/steamuser"
+mkdir -p "$MOCK_USER/Documents/Arma 3/missions"
+mkdir -p "$MOCK_USER/Documents/Arma 3 - Other Profiles/MyProfile/Saved"
+mkdir -p "$MOCK_USER/AppData/Local/Arma 3 Launcher/Presets"
+mkdir -p "$MOCK_USER/AppData/Roaming/TS3Client/plugins"
+mkdir -p "$MOCK_COMPAT/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+touch "$MOCK_USER/Documents/Arma 3/missions/test.sqf"
+touch "$MOCK_USER/Documents/Arma 3 - Other Profiles/MyProfile/Saved/campaign.sav"
+touch "$MOCK_USER/AppData/Local/Arma 3 Launcher/Presets/mymods.preset"
+
+# Source the real _prefix_reset and _confirmation functions from the script.
+_script_fn="$(sed -n '/^_prefix_reset() {/,/^}/p' "$HELPER")"
+eval "$_script_fn"
+_script_fn="$(sed -n '/^_confirmation() {/,/^}/p' "$HELPER")"
+eval "$_script_fn"
+
+# Exported so the eval'd function can read it (SC2034-safe: export marks it used)
+export PROTONEXEC=""
+
+# Run the full reset against the mock. It backs up, then moves compatdata aside.
+# HOME is redirected so the backup lands in a temp dir we control. The real
+# _confirmation is answered via piped input.
+MOCK_HOME_RESET="$TMPDIR_TEST/prefix-reset/home"
+mkdir -p "$MOCK_HOME_RESET"
+export COMPAT_DATA_PATH="$MOCK_COMPAT"
+( HOME="$MOCK_HOME_RESET" _prefix_reset full >/dev/null 2>&1 ) <<< "y"
+_reset_exit=$?
+
+_backup_dirs=( "$MOCK_HOME_RESET"/Arma3Helper-prefix-backup-* )
+_backup_dir="${_backup_dirs[0]}"
+if [[ "$_reset_exit" == 0 && -n "$_backup_dir" ]]; then
+    pass "Prefix reset ran and created a backup"
+else
+    fail "Prefix reset did not complete or made no backup (exit=$_reset_exit)"
+fi
+
+# The default profile folder must be backed up.
+if [[ -f "$_backup_dir/Arma 3/missions/test.sqf" ]]; then
+    pass "Default profile (Documents/Arma 3) backed up"
+else
+    fail "Default profile not in backup"
+fi
+
+# The named-profile folder must be backed up.
+if [[ -f "$_backup_dir/Arma 3 - Other Profiles/MyProfile/Saved/campaign.sav" ]]; then
+    pass "Named profiles (Arma 3 - Other Profiles) backed up"
+else
+    fail "Named profiles not in backup"
+fi
+
+# Mod presets must be backed up.
+if [[ -f "$_backup_dir/Presets/mymods.preset" ]]; then
+    pass "Mod presets backed up"
+else
+    fail "Mod presets not in backup"
+fi
+
+# The original prefix must have been moved aside, not deleted.
+if ls -d "${MOCK_COMPAT}".old-* >/dev/null 2>&1; then
+    pass "Old prefix moved aside (recoverable)"
+else
+    fail "Old prefix not moved aside"
+fi
+
+rm -rf "$TMPDIR_TEST/prefix-reset"
+
+echo ""
+
+# ===========================================================================
+echo "── 10. End-to-end: real system auto-detect ──"
 # ===========================================================================
 REAL_PREFIX="/ext/SteamLibrary/steamapps/compatdata/107410/version"
 if [[ -f "$REAL_PREFIX" ]]; then
@@ -425,7 +500,7 @@ fi
 echo ""
 
 # ===========================================================================
-echo "── 10. Dry-run: script runs without errors ──"
+echo "── 11. Dry-run: script runs without errors ──"
 # ===========================================================================
 if [[ -x "$HELPER" ]]; then
     # Dry-run with a non-existent command to test arg parsing
@@ -442,7 +517,7 @@ fi
 echo ""
 
 # ===========================================================================
-echo "── 11. Version file path: reads \$COMPAT_DATA_PATH/version ──"
+echo "── 12. Version file path: reads \$COMPAT_DATA_PATH/version ──"
 # ===========================================================================
 # Verify the script reads the correct version file path
 _script_version_path=$(grep -n '_prefix_version_file=\|version_file=' "$HELPER" | head -2)
@@ -454,7 +529,7 @@ else
 fi
 
 # ===========================================================================
-echo "── 12. Proton guard: rejects non-executable paths ──"
+echo "── 13. Proton guard: rejects non-executable paths ──"
 # ===========================================================================
 # Test that the script errors cleanly when custom proton doesn't exist
 MOCK_HOME_11=$(mktemp -d)
@@ -497,7 +572,7 @@ fi
 rm -rf "$MOCK_HOME_11b"
 
 # ===========================================================================
-echo "── 13. Auto-detect skipped when PROTON_CUSTOM_VERSION set ──"
+echo "── 14. Auto-detect skipped when PROTON_CUSTOM_VERSION set ──"
 # ===========================================================================
 # When PROTON_CUSTOM_VERSION is set, auto-detect should not run and
 # PROTON_OFFICIAL_VERSION should NOT be set to a fallback value
