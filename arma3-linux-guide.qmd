@@ -400,7 +400,7 @@ The Arma3Helper script is a command-line tool that manages the interface between
 
 The script also applies several automatic protections at every launch:
 
-- **Setup wizard**: On first use, offers to check dependencies and install the recommended Windows components.
+- **Setup wizard**: On first use, walks through the full setup: dependency check, TeamSpeak 3 install if missing, Winetricks DLLs, launch option patch, and radio plugin verification.
 - **Prefix protection**: Warns if the configured Proton version differs from the version that created the prefix. Changing Proton versions can break audio and plugins.
 - **Gamepad plugin removal**: Deletes the crashing Gamepad and Joystick Hotkey Support plugin from the prefix (Chapter 7).
 - **S: drive preservation**: Exports the variables Proton needs so the game's `S:` drive survives (Chapter 5, "Steam Compatibility Paths").
@@ -649,6 +649,12 @@ Verify that TeamSpeak 3 was installed correctly by attempting to launch it. Firs
 ``` bash
 ./Arma3Helper.sh
 ```
+
+The launch checks run automatically:
+
+- If TeamSpeak 3 is missing, the script offers to download and install it.
+- If a radio plugin is missing or was disabled after a crash, the script prints the exact command to fix it.
+- If Arma 3 is not running, the script warns that the radio plugins cannot connect.
 
 TeamSpeak 3 should open. If it does not, run the debug command and check that the TS3 executable path is correct:
 
