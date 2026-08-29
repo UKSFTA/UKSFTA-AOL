@@ -232,6 +232,52 @@ source "$USERCONFIG/config"
 # Run setup wizard if config is default and Arma prefix exists.
 # The wizard dismiss flag persists: answering "n" disables the prompt until
 # the config file is edited again.
+
+# _warn_missing_plugins
+#   Lightweight radio-plugin presence check for the launch path. Warns
+#   with the exact fix when a plugin is missing or crash-disabled, instead
+#   of letting the user discover it after joining a mission with no radio.
+_warn_missing_plugins() {
+    local plugins_dir="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+    [[ -d "$plugins_dir" ]] || return 0
+
+    local acre2=0 tfar=0 disabled="" f
+    # shellcheck disable=SC2012
+    for f in "$plugins_dir"/acre2_win*.dll; do [[ -f "$f" ]] && acre2=1; done
+    # shellcheck disable=SC2012
+    for f in "$plugins_dir"/TFAR_*.dll; do [[ -f "$f" ]] && tfar=1; done
+    # shellcheck disable=SC2012
+    for f in "$plugins_dir"/config/plugins/*.disabled; do
+        case "$(basename "$f")" in
+            acre2_*.dll.disabled|TFAR_*.dll.disabled)
+                disabled="${disabled:+$disabled, }$(basename "$f")"
+                ;;
+        esac
+    done
+
+    local warn=0
+    if [[ "$acre2" == 0 ]]; then
+        echo -e "\e[33mNote\e[0m: ACRE2 plugin not installed. Radios will not work."
+        echo "  Install with:  ./Arma3Helper.sh acremod"
+        warn=1
+    fi
+    if [[ "$tfar" == 0 ]]; then
+        echo -e "\e[33mNote\e[0m: TFAR plugin not installed. Radios will not work."
+        echo "  Install with:  ./Arma3Helper.sh tfarmod"
+        warn=1
+    fi
+    if [[ -n "$disabled" ]]; then
+        echo -e "\e[33mNote\e[0m: Plugin disabled after a crash: $disabled"
+        echo "  Re-enable with:  ./Arma3Helper.sh acremod --enable"
+        echo "                  ./Arma3Helper.sh tfarmod --enable"
+        warn=1
+    fi
+    if [[ "$warn" == 1 ]]; then
+        echo ""
+        echo "  Run 'verifyradio' for the full check:  ./Arma3Helper.sh verifyradio"
+    fi
+}
+
 _setup_wizard() {
     if [[ -n "$WIZARD_DISMISSED" ]]; then
         return 0
@@ -252,11 +298,32 @@ _setup_wizard() {
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             _check_dependencies
+
+            # Step 1: TeamSpeak 3 must exist before plugins can be installed.
+            if ! _ensure_ts3_installed; then
+                echo "Setup paused. Install TeamSpeak 3 with:  ./Arma3Helper.sh install"
+                return 0
+            fi
+
+            # Step 2: Winetricks DLLs for audio and thermal-vision fixes.
             _get_wrappercmd || return 0
             echo "Installing recommended DLLs..."
             export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
             "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9
+
+            # Step 3: Ensure Arma and TeamSpeak share the container path.
+            echo ""
+            echo "Patching Steam launch options..."
+            _ensure_steam_launch_options
+
+            # Step 4: Verify the radio plugins.
+            echo ""
+            echo "Verifying radio plugins..."
+            _check_radio_plugins
+
+            echo ""
             echo -e "\e[32mSetup complete.\e[0m"
+            echo "If your unit uses TFAR, run:  ./Arma3Helper.sh tfarmod"
             # A successful setup counts as dismissed, so the prompt does not
             # return on the next launch.
             if ! grep -q '^WIZARD_DISMISSED=' "$USERCONFIG/config" 2>/dev/null; then
@@ -299,6 +366,45 @@ _checkpath() {
         echo "  $1"
         exit 1
     fi
+}
+
+# _ensure_ts3_installed
+#   Offer to auto-install TeamSpeak 3 when it is missing at launch time.
+#   Returns 1 if the user declines or the install fails.
+_ensure_ts3_installed() {
+    local ts3exe="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe"
+    if [[ -x "$ts3exe" ]]; then
+        return 0
+    fi
+
+    echo -e "\e[33mTeamSpeak 3 is not installed in Arma's prefix.\e[0m"
+    echo "Arma3Helper can download and install it automatically."
+    read -p "Install TeamSpeak 3 now? (y/n) " -n 1 -r
+    echo
+    if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+        echo "Install it later with:  ./Arma3Helper.sh install"
+        return 1
+    fi
+    _install_ts3_auto
+}
+
+# _install_ts3_auto
+#   Download and silently install the latest TeamSpeak 3 into the prefix.
+_install_ts3_auto() {
+    if ! _download_ts3; then
+        echo "Manual install:  ./Arma3Helper.sh install /path/to/installer.exe"
+        return 1
+    fi
+    echo "Installing TeamSpeak 3 (silent, for All Users)..."
+    if "$PROTONEXEC" run "$_TS3_INSTALLER" /S /ALLUSERS; then
+        if [[ -x "$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe" ]]; then
+            echo -e "\e[32mTeamSpeak 3 installed successfully.\e[0m"
+            return 0
+        fi
+    fi
+    echo -e "\e[33mWarning\e[0m: The silent installer did not complete cleanly."
+    echo "Run it manually:  ./Arma3Helper.sh install"
+    return 1
 }
 
 # _confirmation <question>
@@ -2295,7 +2401,12 @@ if [[ -z "$*" ]]; then
         echo -e "\e[33mNote\e[0m: Arma 3 does not appear to be running."
         echo "Start Arma 3 first, or the radio plugins cannot connect."
     fi
-    _checkpath "$TSPATH" "TeamSpeak 3"
+    _warn_missing_plugins
+    if _ensure_ts3_installed; then
+        _checkpath "$TSPATH" "TeamSpeak 3"
+    else
+        exit 1
+    fi
     echo ""
     echo "------------------------------------------------------------"
     echo " Launching TeamSpeak 3 inside Arma 3's Wine prefix"

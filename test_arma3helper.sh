@@ -688,6 +688,73 @@ unset COMPAT_DATA_PATH
 echo ""
 
 # ===========================================================================
+echo "── 8e. Launch-path warnings (plugins + TS3 presence) ──"
+# ===========================================================================
+# At launch the script warns when radio plugins are missing or disabled,
+# and offers to install TeamSpeak 3 when it is absent.
+
+_plugin_fn="$(sed -n '/^_warn_missing_plugins() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_ensure_ts3_installed() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+
+MOCK_COMPAT="$TMPDIR_TEST/launch-compat/107410"
+export COMPAT_DATA_PATH="$MOCK_COMPAT"
+TS3_PLUGINS="$MOCK_COMPAT/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+mkdir -p "$TS3_PLUGINS/config"
+
+# Case A: no plugins -> both warnings shown
+_out="$(_warn_missing_plugins)"
+if echo "$_out" | grep -q "ACRE2 plugin not installed" && \
+   echo "$_out" | grep -q "TFAR plugin not installed"; then
+    pass "launch warns when both plugins missing"
+else
+    fail "launch missing-plugins warning wrong"
+fi
+
+# Case B: plugin present -> no warning
+touch "$TS3_PLUGINS/acre2_win64.dll"
+_out="$(_warn_missing_plugins)"
+if ! echo "$_out" | grep -q "ACRE2 plugin not installed"; then
+    pass "launch silent when ACRE2 plugin present"
+else
+    fail "launch warned despite ACRE2 present"
+fi
+
+# Case C: crash-disabled plugin flagged
+rm -f "$TS3_PLUGINS/acre2_win64.dll"
+mkdir -p "$TS3_PLUGINS/config/plugins"
+touch "$TS3_PLUGINS/config/plugins/acre2_win64.dll.disabled"
+_out="$(_warn_missing_plugins)"
+if echo "$_out" | grep -q "Plugin disabled after a crash"; then
+    pass "launch flags crash-disabled plugin"
+else
+    fail "launch did not flag disabled plugin"
+fi
+
+# Case D: TS3 present -> ensure returns 0 without prompting
+touch "$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe"
+chmod +x "$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe"
+if _ensure_ts3_installed; then
+    pass "ensure_ts3 returns 0 when installed"
+else
+    fail "ensure_ts3 failed despite TS3 present"
+fi
+
+# Case E: TS3 missing + user declines -> returns 1
+rm -rf "$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client"
+if echo "n" | _ensure_ts3_installed >/dev/null 2>&1; then
+    fail "ensure_ts3 should return 1 when declined"
+else
+    pass "ensure_ts3 returns 1 when user declines"
+fi
+
+rm -rf "$TMPDIR_TEST/launch-compat"
+unset COMPAT_DATA_PATH
+
+echo ""
+
+# ===========================================================================
 echo "── 9. Prefix reset backup coverage ──"
 # ===========================================================================
 # The full reset must back up BOTH profile folders (default + named),
