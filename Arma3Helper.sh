@@ -1370,9 +1370,10 @@ _prefix_reset() {
         echo ""
         echo "Next steps:"
         echo "  1. Launch Arma 3 from Steam once – Proton creates a fresh prefix."
-        echo "  2. Run './Arma3Helper.sh winetricks Arma' to reinstall DLLs."
-        echo "  3. Restore your data from the backup if needed."
-        echo "  4. If everything works, delete the .old-* prefix folder."
+        echo "  2. Run './Arma3Helper.sh bindhost' if you use host Documents."
+        echo "  3. Run './Arma3Helper.sh winetricks Arma' to reinstall DLLs."
+        echo "  4. Restore your data from the backup if needed."
+        echo "  5. If everything works, delete the .old-* prefix folder."
     else
         # ---- IN-PLACE RESET: Proton's own tracked-file removal ----
         echo "Running Proton's destroyprefix (removes tracked Wine system files)..."
@@ -1398,6 +1399,128 @@ _prefix_reset() {
         echo "  2. Re-run './Arma3Helper.sh winetricks Arma' if audio/visuals break."
         echo "  3. Reinstall TeamSpeak 3 only if it no longer launches."
     fi
+}
+
+# -----------------------------------------------------------------------------
+# BIND HOST DIRECTORIES
+# -----------------------------------------------------------------------------
+# Point the prefix's Documents and Downloads shell folders at the real host
+# folders, using Wine's registry (no symlinks, no Steam-side changes).
+#
+# Why this works:
+#   - Proton maps the prefix's Z: drive to the container root (always present).
+#   - pressure-vessel bind-mounts the host /home at the same path inside the
+#     container. So Z:\home\<user>\Documents IS the host ~/Documents.
+#   - Wine's SHGetFolderPath(CSIDL_PERSONAL) and SHGetKnownFolderPath
+#     (FOLDERID_Documents) both read the "Personal" value in User Shell
+#     Folders. One registry write covers both APIs Arma 3 uses.
+#
+# Result: Arma 3 reads and writes profiles, loadouts, missions, and modlists
+# on the HOST filesystem. Deleting the prefix no longer destroys them. A
+# fresh prefix picks them up immediately after bindhost is re-applied.
+#
+# The registry write runs inside the prefix via Proton, so it does not need
+# WINEPREFIX or a running game. It sets:
+#   Personal   -> Z:\home\<user>\Documents
+#   Downloads  -> Z:\home\<user>\Downloads
+#   the FOLDERID_Documents GUID  ({FDD39AD0-238F-46AF-ADB4-6C85480369C7})
+#   the FOLDERID_Downloads GUID  ({374DE290-123F-4565-9164-39C4925E467B})
+_bind_host_dirs() {
+    if [[ -z "$PROTONEXEC" || ! -x "$PROTONEXEC" ]]; then
+        echo -e "\e[31mError\e[0m: No Proton executable found. Cannot edit the prefix registry."
+        exit 1
+    fi
+    if [[ ! -d "$COMPAT_DATA_PATH/pfx" ]]; then
+        echo -e "\e[31mError\e[0m: No prefix found at $COMPAT_DATA_PATH/pfx"
+        echo "Launch Arma 3 once from Steam to create it."
+        exit 1
+    fi
+
+    local host_docs host_dl
+    host_docs="Z:\\\\home\\\\$(whoami)\\\\Documents"
+    host_dl="Z:\\\\home\\\\$(whoami)\\\\Downloads"
+
+    echo ""
+    echo "================================================================"
+    echo " Bind Host Directories"
+    echo "================================================================"
+    echo ""
+    echo "This makes Arma 3 use your REAL host folders:"
+    echo "  Documents -> $HOME/Documents"
+    echo "  Downloads -> $HOME/Downloads"
+    echo ""
+    echo "Your profiles, loadouts, missions, and settings then live on the"
+    echo "host. Deleting the Wine prefix will NOT lose them."
+    echo ""
+    _confirmation "Continue?"
+
+    # Stop any running Wine so the registry write is not contested.
+    "$PROTONEXEC" run wineserver -k 2>/dev/null
+    sleep 1
+
+    local key="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders"
+    local guid_docs="{FDD39AD0-238F-46AF-ADB4-6C85480369C7}"
+    local guid_dl="{374DE290-123F-4565-9164-39C4925E467B}"
+
+    "$PROTONEXEC" run reg add "$key" /v Personal /t REG_SZ /d "$host_docs" /f >/dev/null 2>&1
+    "$PROTONEXEC" run reg add "$key" /v Downloads /t REG_SZ /d "$host_dl" /f >/dev/null 2>&1
+    "$PROTONEXEC" run reg add "$key" /v "$guid_docs" /t REG_SZ /d "$host_docs" /f >/dev/null 2>&1
+    "$PROTONEXEC" run reg add "$key" /v "$guid_dl" /t REG_SZ /d "$host_dl" /f >/dev/null 2>&1
+
+    # Stop Wine again so the registry file is flushed cleanly.
+    "$PROTONEXEC" run wineserver -k 2>/dev/null
+
+    # Persist the binding in the config so prefix reset --full can re-apply it.
+    if ! grep -q '^BIND_HOST_DIRS=' "$USERCONFIG/config" 2>/dev/null; then
+        {
+            echo "BIND_HOST_DIRS=true"
+            cat "$USERCONFIG/config"
+        } > "$USERCONFIG/config.tmp" 2>/dev/null && mv "$USERCONFIG/config.tmp" "$USERCONFIG/config"
+    fi
+
+    echo ""
+    echo -e "\e[32mDone.\e[0m Arma 3 now uses your host Documents and Downloads."
+    echo "Restart Arma 3 once for the change to take effect."
+}
+
+# -----------------------------------------------------------------------------
+# UNBIND HOST DIRECTORIES
+# -----------------------------------------------------------------------------
+# Revert the bind: point Documents and Downloads back at the prefix-local
+# folders (%USERPROFILE%\Documents, %USERPROFILE%\Downloads).
+_unbind_host_dirs() {
+    if [[ -z "$PROTONEXEC" || ! -x "$PROTONEXEC" ]]; then
+        echo -e "\e[31mError\e[0m: No Proton executable found. Cannot edit the prefix registry."
+        exit 1
+    fi
+    if [[ ! -d "$COMPAT_DATA_PATH/pfx" ]]; then
+        echo -e "\e[31mError\e[0m: No prefix found at $COMPAT_DATA_PATH/pfx"
+        exit 1
+    fi
+
+    echo ""
+    echo "Reverting Documents and Downloads to the prefix-local folders..."
+    _confirmation "Continue?"
+
+    "$PROTONEXEC" run wineserver -k 2>/dev/null
+    sleep 1
+
+    local key="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders"
+    local guid_docs="{FDD39AD0-238F-46AF-ADB4-6C85480369C7}"
+    local guid_dl="{374DE290-123F-4565-9164-39C4925E467B}"
+
+    "$PROTONEXEC" run reg add "$key" /v Personal /t REG_EXPAND_SZ /d "%USERPROFILE%\\\\Documents" /f >/dev/null 2>&1
+    "$PROTONEXEC" run reg add "$key" /v Downloads /t REG_EXPAND_SZ /d "%USERPROFILE%\\\\Downloads" /f >/dev/null 2>&1
+    "$PROTONEXEC" run reg delete "$key" /v "$guid_docs" /f >/dev/null 2>&1
+    "$PROTONEXEC" run reg delete "$key" /v "$guid_dl" /f >/dev/null 2>&1
+
+    "$PROTONEXEC" run wineserver -k 2>/dev/null
+
+    # Remove the config flag so prefix reset --full does not re-apply it.
+    sed -i '/^BIND_HOST_DIRS=/d' "$USERCONFIG/config" 2>/dev/null
+
+    echo ""
+    echo -e "\e[32mDone.\e[0m Documents and Downloads are back to the prefix-local folders."
 }
 
 # Run setup wizard if config is default and Arma prefix exists.
@@ -1962,6 +2085,16 @@ case "$1" in
             exit 1
         fi
         ;;
+    "bindhost")
+    # -------------------------------------------------------------------------
+    # Point the prefix's Documents and Downloads at the real host folders.
+        _bind_host_dirs
+        ;;
+    "unbindhost")
+    # -------------------------------------------------------------------------
+    # Revert Documents and Downloads to the prefix-local folders.
+        _unbind_host_dirs
+        ;;
 
     # -------------------------------------------------------------------------
     "help"|*)
@@ -2030,6 +2163,13 @@ echo " ./Arma3Helper.sh createconfig"
          echo " ./Arma3Helper.sh prefix reset --full"
          echo "     Recreate the prefix. Backs up your Arma 3 profiles and"
          echo "     TeamSpeak data first, then moves the old prefix aside."
+         echo ""
+         echo " ./Arma3Helper.sh bindhost"
+         echo "     Point Arma's Documents and Downloads at your real host"
+         echo "     folders. Profiles then survive prefix deletion."
+         echo ""
+         echo " ./Arma3Helper.sh unbindhost"
+         echo "     Revert Documents and Downloads to the prefix-local folders."
          echo ""
          echo " ./Arma3Helper.sh help"
          echo "     Show this help message."

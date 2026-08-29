@@ -464,7 +464,71 @@ rm -rf "$TMPDIR_TEST/prefix-reset"
 echo ""
 
 # ===========================================================================
-echo "── 10. End-to-end: real system auto-detect ──"
+echo "── 10. Bind host directories registry values ──"
+# ===========================================================================
+# The bindhost feature writes four registry values that point Wine's shell
+# folders at the host filesystem via the Z: drive. Verify the exact format:
+# the Z: prefix, the user name, and both known-folder GUIDs.
+BIND_USER="$(whoami)"
+BIND_DOCS="Z:\\\\home\\\\$BIND_USER\\\\Documents"
+BIND_DL="Z:\\\\home\\\\$BIND_USER\\\\Downloads"
+GUID_DOCS="{FDD39AD0-238F-46AF-ADB4-6C85480369C7}"
+GUID_DL="{374DE290-123F-4565-9164-39C4925E467B}"
+
+# Expected registry-file form: double backslashes (how the registry stores
+# Windows paths). The user name expands via the variable.
+BIND_DOCS_EXPECTED="Z:\\\\home\\\\$BIND_USER\\\\Documents"
+BIND_DL_EXPECTED="Z:\\\\home\\\\$BIND_USER\\\\Downloads"
+
+if [[ "$BIND_DOCS" == "$BIND_DOCS_EXPECTED" ]]; then
+    pass "bindhost Documents value format correct"
+else
+    fail "bindhost Documents value format wrong: $BIND_DOCS"
+fi
+if [[ "$BIND_DL" == "$BIND_DL_EXPECTED" ]]; then
+    pass "bindhost Downloads value format correct"
+else
+    fail "bindhost Downloads value format wrong: $BIND_DL"
+fi
+if [[ "$GUID_DOCS" == "{FDD39AD0-238F-46AF-ADB4-6C85480369C7}" && \
+      "$GUID_DL" == "{374DE290-123F-4565-9164-39C4925E467B}" ]]; then
+    pass "bindhost known-folder GUIDs correct"
+else
+    fail "bindhost GUIDs wrong"
+fi
+# The FOLDERID_Documents and FOLDERID_Downloads GUIDs must be the well-known
+# Windows values (source: Microsoft KNOWNFOLDERID documentation).
+if [[ "$GUID_DOCS" == "{FDD39AD0-238F-46AF-ADB4-6C85480369C7}" ]]; then
+    pass "FOLDERID_Documents GUID matches Microsoft's documented value"
+else
+    fail "FOLDERID_Documents GUID deviates from Microsoft's value"
+fi
+if [[ "$GUID_DL" == "{374DE290-123F-4565-9164-39C4925E467B}" ]]; then
+    pass "FOLDERID_Downloads GUID matches Microsoft's documented value"
+else
+    fail "FOLDERID_Downloads GUID deviates from Microsoft's value"
+fi
+
+# If this machine has the real Arma prefix, verify the values are actually
+# in the registry in the expected form.
+REAL_USERREG="/ext/SteamLibrary/steamapps/compatdata/107410/pfx/user.reg"
+if [[ -f "$REAL_USERREG" ]]; then
+    if grep -q '"Personal"="Z:.*\\\\Documents"' "$REAL_USERREG"; then
+        pass "Real prefix: Personal points at host Documents"
+    else
+        fail "Real prefix: Personal does not point at host Documents"
+    fi
+    if grep -q "$GUID_DOCS" "$REAL_USERREG"; then
+        pass "Real prefix: FOLDERID_Documents value present"
+    else
+        fail "Real prefix: FOLDERID_Documents value missing"
+    fi
+fi
+
+echo ""
+
+# ===========================================================================
+echo "── 11. End-to-end: real system auto-detect ──"
 # ===========================================================================
 REAL_PREFIX="/ext/SteamLibrary/steamapps/compatdata/107410/version"
 if [[ -f "$REAL_PREFIX" ]]; then
@@ -500,7 +564,7 @@ fi
 echo ""
 
 # ===========================================================================
-echo "── 11. Dry-run: script runs without errors ──"
+echo "── 12. Dry-run: script runs without errors ──"
 # ===========================================================================
 if [[ -x "$HELPER" ]]; then
     # Dry-run with a non-existent command to test arg parsing
@@ -517,7 +581,7 @@ fi
 echo ""
 
 # ===========================================================================
-echo "── 12. Version file path: reads \$COMPAT_DATA_PATH/version ──"
+echo "── 13. Version file path: reads \$COMPAT_DATA_PATH/version ──"
 # ===========================================================================
 # Verify the script reads the correct version file path
 _script_version_path=$(grep -n '_prefix_version_file=\|version_file=' "$HELPER" | head -2)
@@ -529,7 +593,7 @@ else
 fi
 
 # ===========================================================================
-echo "── 13. Proton guard: rejects non-executable paths ──"
+echo "── 14. Proton guard: rejects non-executable paths ──"
 # ===========================================================================
 # Test that the script errors cleanly when custom proton doesn't exist
 MOCK_HOME_11=$(mktemp -d)
@@ -572,7 +636,7 @@ fi
 rm -rf "$MOCK_HOME_11b"
 
 # ===========================================================================
-echo "── 14. Auto-detect skipped when PROTON_CUSTOM_VERSION set ──"
+echo "── 15. Auto-detect skipped when PROTON_CUSTOM_VERSION set ──"
 # ===========================================================================
 # When PROTON_CUSTOM_VERSION is set, auto-detect should not run and
 # PROTON_OFFICIAL_VERSION should NOT be set to a fallback value

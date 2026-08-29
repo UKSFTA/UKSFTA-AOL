@@ -103,3 +103,13 @@ RUNTIME_SHARE_DIRS=""
 #
 STEAM_COMPAT_INSTALL_PATH=""
 STEAM_COMPAT_LIBRARY_PATHS=""
+
+# -----------------------------------------------------------------------------
+# BIND HOST DIRECTORIES (set by the script)
+# -----------------------------------------------------------------------------
+# Set to true by './Arma3Helper.sh bindhost'. Do not edit by hand.
+# When true, Arma 3 reads and writes profiles on the real host Documents
+# and Downloads folders instead of the prefix-local ones. 'prefix reset
+# --full' re-applies the binding automatically after recreating the prefix.
+#
+BIND_HOST_DIRS=false
