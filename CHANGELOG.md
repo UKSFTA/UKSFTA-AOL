@@ -7,6 +7,23 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-08-29
+
+### Removed
+
+- The `launchopts` command and all Steam launch-option patching. Research
+  against the Wine source (`server/request.c`, `dlls/ntdll/unix/server.c`)
+  and pressure-vessel (`wrap-setup.c`) showed the Wine server socket lives
+  in `/tmp/.wine-<uid>/`, and pressure-vessel exports `/tmp` read-write by
+  default. `PRESSURE_VESSEL_FILESYSTEMS_RW` was never needed.
+- `RUNTIME_SHARE_DIRS` config option (dead after launchopts removal).
+
+### Changed
+
+- `acrecheck` no longer checks Steam launch options.
+- Guide: the container-isolation troubleshooting section now documents the
+  real causes of the pipe error (wrong prefix or external TeamSpeak).
+
 ## [2.4.0] - 2026-08-29
 
 ### Added
@@ -218,7 +235,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.4.0...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.5.0...master
+[2.5.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.0...v2.2.1
