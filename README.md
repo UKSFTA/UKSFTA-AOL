@@ -13,15 +13,19 @@ public to support the wider Arma on Linux/Unix community.
 - **Steam Library Auto-Detection:** Now supports external drives and non-standard
   library locations automatically.
 - **Custom Proton Support:** Improved support for custom and GE-Proton versions.
+- **Proton Auto-Detection:** Reads the Proton version from Arma's prefix and
+  matches it to an installed build. No manual version setting needed.
 - **Setup Wizard:** Automated onboarding detects existing installations and guides
   users through necessary `winetricks`/dependency setup.
 - **Prefix Protection:** Proactive safety check alerts users to potential Proton-version
   mismatches to prevent configuration breakage.
 - **Automated CI/CD:** Integrated GitHub Actions workflow to automatically render and
   deploy the documentation to GitHub Pages (supporting both HTML and PDF formats).
-- **Comprehensive Documentation:** A full, updated guide in Quarto (`.qmd`) format is
-  included, written to the standards of the Joint Service Publication 101 (JSP 101)
-  Writers' Handbook.
+  CI also runs shellcheck and a unit test suite on every push and pull request.
+- **Unit Tests:** A test suite (`test_arma3helper.sh`) covers version matching,
+  Steam library discovery, symlink handling, and edge cases.
+- **Full Documentation:** A guide in Quarto (`.qmd`) format is included, written to
+  the standards of the Joint Service Publication 101 (JSP 101) Writers' Handbook.
 - **Enhanced Dependencies:** Expanded checks to ensure multilib GStreamer libraries are
   present for audio support.
 
