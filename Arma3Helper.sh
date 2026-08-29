@@ -255,7 +255,7 @@ _setup_wizard() {
             _get_wrappercmd || return 0
             echo "Installing recommended DLLs..."
             export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
-            "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29
+            "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9
             echo -e "\e[32mSetup complete.\e[0m"
             # A successful setup counts as dismissed, so the prompt does not
             # return on the next launch.
@@ -703,9 +703,70 @@ _check_dependencies() {
         esac
     fi
 
+    # ----------------------------------------------------------------
+    # Check the Steam library mount (external drives with noexec break
+    # mod loading and Proton execution)
+    # ----------------------------------------------------------------
+    echo ""
+    echo "Checking Steam library mount options..."
+    echo "  (A noexec mount stops Proton and Workshop mods from running.)"
+    echo ""
+    local _mounted=0
+    local lib_path
+    while IFS= read -r lib_path; do
+        [[ -z "$lib_path" ]] && continue
+        local compat="$lib_path/steamapps/compatdata/107410"
+        local workshop="$lib_path/steamapps/workshop/content/107410"
+        if [[ -d "$compat" || -d "$workshop" ]]; then
+            _mounted=1
+            local mnt
+            mnt="$(df -P "$lib_path" 2>/dev/null | awk 'NR==2{print $6}')"
+            if [[ -n "$mnt" ]]; then
+                if mount | grep -q "on $mnt .*noexec"; then
+                    echo -e "  \e[31m[ISSUE]\e[0m  $mnt is mounted noexec"
+                    echo "    Proton and Workshop mods cannot run from a noexec drive."
+                    echo "    Remount with exec:  sudo mount -o remount,exec $mnt"
+                    echo "    Or move the Steam library to an ext4 drive."
+                else
+                    echo -e "  \e[32m[OK]\e[0m     $mnt (exec allowed)"
+                fi
+            fi
+        fi
+    done < <(_find_steam_libraries)
+    if [[ "$_mounted" == 0 ]]; then
+        echo "  (no Arma 3 library found to check)"
+    fi
+
+    # ----------------------------------------------------------------
+    # Check for the Proton BattlEye Runtime (needed for online play)
+    # ----------------------------------------------------------------
+    echo ""
+    echo "Checking for Proton BattlEye Runtime..."
+    echo "  (BattlEye servers kick players without this runtime installed.)"
+    echo ""
+    if _check_battleye_runtime; then
+        echo -e "  \e[32m[OK]\e[0m     Proton BattlEye Runtime found"
+    else
+        echo -e "  \e[33m[MISSING]\e[0m Proton BattlEye Runtime"
+        echo "  Install it in Steam: Library -> Tools -> Proton BattlEye Runtime"
+    fi
+
     echo ""
     echo "================================================================"
     echo ""
+}
+
+# _check_battleye_runtime
+#   Return 0 if the Proton BattlEye Runtime is installed in any Steam library.
+_check_battleye_runtime() {
+    local lib_path
+    while IFS= read -r lib_path; do
+        [[ -z "$lib_path" ]] && continue
+        if [[ -d "$lib_path/steamapps/common/Proton BattlEye Runtime" ]]; then
+            return 0
+        fi
+    done < <(_find_steam_libraries)
+    return 1
 }
 
 # _get_wrappercmd
@@ -1410,8 +1471,10 @@ case "$1" in
     #     d3dcompiler_43 – DirectX shader compiler (fixes some rendering issues)
     #     d3dx10_43      – DirectX 10 (required by some mods)
     #     d3dx11_43      – DirectX 11 (required by some mods)
+    #     mfc140         – Microsoft C++ runtime (required by some mods)
     #     xact_x64       – Microsoft XACT audio engine (fixes audio issues)
     #     xaudio29       – XAudio2 library (fixes audio crackling)
+    #     xaudio2_9      – XAudio 2.9 (fixes crackle after Arma 2.22 update)
         echo "Running winetricks inside Arma 3's Wine prefix..."
         _get_wrappercmd || exit 1
         echo "Using: ${_WRAPPER[*]}"
@@ -1420,11 +1483,11 @@ case "$1" in
 
         if [[ "$2" == "Arma" ]]; then
             echo "Installing recommended DLLs and components for Arma 3..."
-            echo "  d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29"
+            echo "  d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9"
             echo ""
             echo "This may take several minutes. Do not interrupt."
             echo ""
-            "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29
+            "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9
             echo ""
             echo "Done. Run Arma 3 and check if audio/thermal-vision issues are resolved."
         else
@@ -1504,6 +1567,14 @@ case "$1" in
         echo "SteamAppId / SteamGameId:        $SteamAppId / $SteamGameId"
         echo "ESync:  $ESYNC"
         echo "FSync:  $FSYNC"
+        echo ""
+        # Warn about the Proton 11.0-1 Workshop regression: it re-downloaded
+        # Workshop mods on every launch. Fixed in 11.0-2.
+        if [[ -n "$PROTON_OFFICIAL_VERSION" && "$PROTON_OFFICIAL_VERSION" == "11.0-1" ]]; then
+            echo -e "\e[33mWarning\e[0m: Proton 11.0-1 re-downloads Workshop mods on every launch."
+            echo "Update to Proton 11.0-2 or newer, or use Proton Experimental."
+            echo ""
+        fi
         echo ""
         echo "--- Required Arma 3 Steam Launch Options ---"
         echo "PRESSURE_VESSEL_FILESYSTEMS_RW=${RUNTIME_SHARE_DIRS:-/tmp:$HOME/Documents:$HOME/Downloads} %command%"

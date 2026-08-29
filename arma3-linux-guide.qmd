@@ -543,8 +543,10 @@ This installs the following components into Arma's Wine prefix:
 - **`d3dcompiler_43`**: DirectX shader compiler. Fixes certain rendering issues.
 - **`d3dx10_43`**: DirectX 10 runtime. Required by some mods.
 - **`d3dx11_43`**: DirectX 11 runtime. Required by some mods.
+- **`mfc140`**: Microsoft C++ runtime. Required by some mods.
 - **`xact_x64`**: Microsoft XACT audio engine. Fixes audio problems.
 - **`xaudio29`**: XAudio2 library. Fixes audio crackling at high volume.
+- **`xaudio2_9`**: XAudio 2.9 library. Fixes audio crackling after the Arma 2.22 update.
 
 The installation may take several minutes. Do not interrupt it. A slow internet connection will extend the time needed.
 
@@ -858,23 +860,21 @@ This installs the XACT and XAudio2 components that Arma 3 requires.
 
 ### Audio Crackling at High Volumes
 
-This problem is common with Proton 7.0 and earlier. Two solutions are available.
+The Arma 2.22 update moved the game to XAudio 2.9. Some Proton versions crackle with it. The `winetricks Arma` command (Chapter 6) installs `xaudio2_9`, which resolves this.
 
-**Option A** – Add to Arma 3's Steam launch options:
+If crackling persists, add an override for `xaudio2_9` instead of `xaudio2_7`:
 
 ```         
-WINEDLLOVERRIDES="xaudio2_7=n" %command%
+WINEDLLOVERRIDES="xaudio2_9=n" %command%
 ```
 
-**Option B** – Set it through winecfg:
+Alternatively set it through winecfg:
 
 ``` bash
 ./Arma3Helper.sh winecfg
 ```
 
-Navigate to the **Libraries** tab and add `xaudio2_7` with the override set to **Native**.
-
-Both options achieve the same result. Option A is simpler.
+Navigate to the **Libraries** tab and add `xaudio2_9` with the override set to **Native**.
 
 ## Arma 3 Crashes on Startup
 
