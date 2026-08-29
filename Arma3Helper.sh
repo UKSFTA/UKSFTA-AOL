@@ -40,7 +40,7 @@
 # Original Repository: https://github.com/ninelore/armaonlinux
 # Support:    https://discord.gg/p28Ra36  (ArmaOnUnix Discord)
 
-_SCRIPTVER="2.0.0"
+_SCRIPTVER="2.0.1"
 
 ###############################################################################
 ## USER CONFIGURATION
@@ -60,10 +60,10 @@ _SCRIPTVER="2.0.0"
 # in Steam. This MUST match exactly.
 #
 # Valid values:
-#   Official versions: '9.0', '8.0', '7.0', '6.3', '5.13', '5.0'
+#   Official versions: '11.0', '10.0', '9.0', '8.0', '7.0', '6.3', '5.13', '5.0'
 #   Proton Experimental: 'Experimental'
 #
-# Leave empty to default to '9.0'.
+# Leave empty to auto-detect the version that created Arma's prefix.
 # If you use a custom/GE Proton build, leave this empty and set
 # PROTON_CUSTOM_VERSION below instead.
 #
