@@ -40,24 +40,6 @@ assert_eq() {
     fi
 }
 
-assert_true() {
-    local label="$2"
-    if [[ "$1" == true ]]; then
-        pass "$label"
-    else
-        fail "$label — expected true, got false"
-    fi
-}
-
-assert_false() {
-    local label="$2"
-    if [[ "$1" == false ]]; then
-        pass "$label"
-    else
-        fail "$label — expected false, got true"
-    fi
-}
-
 assert_file_exists() {
     if [[ -f "$1" ]]; then
         pass "$2"
