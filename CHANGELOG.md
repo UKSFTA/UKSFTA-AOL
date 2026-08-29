@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Guide: removed `-exThreads`, `-enableHT`, and `-hugepages` advice. These
+  reduce performance since Arma 2.20.
+- Guide: documented 64-bit default and 32-bit deprecation.
+- Guide: added ProtonDB-sourced troubleshooting (8 kHz mouse freeze,
+  640×480 lock, cursor escape, VRAM leak) and the 44.1 kHz audio fix.
+- Guide: documented script protections (wizard, prefix check, gamepad
+  removal, S: drive, single-instance guard) and checkdeps coverage
+  (BattlEye runtime, noexec mounts).
+
 ## [2.1.2] - 2026-08-29
 
 ### Changed
