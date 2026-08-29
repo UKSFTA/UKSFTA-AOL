@@ -697,6 +697,16 @@ cp acre2_win32.dll acre2_win64.dll \
 ```
 
 If your Arma 3 is on an external drive, use the path shown by the debug command rather than the example above.
+
+## Mods on an External Drive
+
+If the game or its Workshop mods sit on an external drive, two mount problems can break loading:
+
+- **`noexec` mount**: Proton and Workshop mods cannot run from a drive mounted with `noexec`. Check with `cat /proc/mounts | grep noexec`. Remount with exec: `sudo mount -o remount,exec <mountpoint>`, or move the Steam library to an ext4 drive.
+- **Container visibility**: Steam Linux Runtime isolates the game. Directories outside your home, the game's library, and the Proton install are invisible to it. Arma3Helper's `launchopts` command shares the paths ACRE2 and TFAR need. The prefix's `S:` drive maps to the game library; it only works when that library is inside a shared directory.
+
+Run `./Arma3Helper.sh checkdeps`. It reports both problems automatically.
+
 ## Verifying ACRE2
 
 Follow this sequence to verify ACRE2 is working:
@@ -988,21 +998,55 @@ Copy the output of both commands and include it when asking for help. This infor
 
 # Chapter 11 – Performance Optimisation
 
-## Arma 3 Launch Parameters
+## Recommended Launch Parameters
 
-Arma 3 supports a range of launch parameters that can improve performance. Add them in the Arma 3 Unix Launcher or in Steam's **Launch Options** field (Chapter 3, 'Adding Arma 3 Launch Options').
+Arma 3 supports a range of launch parameters that improve startup time and frame rate. Add them in Arma 3's Steam **Launch Options** field (Chapter 3, 'Adding Arma 3 Launch Options') or in the Arma 3 Unix Launcher.
 
-The following parameters are recommended. Not all will benefit every system. Try them individually to identify which help your configuration.
+The following baseline is safe for all systems and is what the current Linux guides recommend:
 
+```         
+%command% -noLauncher -noSplash -skipIntro -world=empty -noLogs
+```
+
+- **`-noLauncher`**: Skips the Arma 3 launcher, which is slow and can glitch under Proton. Use the Arma 3 Unix Launcher for mod management instead.
 - **`-noSplash`**: Skips opening splash screens. Reduces startup time.
 - **`-skipIntro`**: Shows a static main menu background. Minor startup speedup.
 - **`-world=empty`**: Loads an empty world for the main menu. Significant startup speedup.
-- **`-exThreads=7`**: Offloads work to more threads. Best for 4+ core CPUs. Use `3` for 2-core CPUs.
+- **`-noLogs`**: Disables log writing. Slight performance gain. Remove this when troubleshooting.
+
+The following parameters help only some systems. Try them individually to identify which help your configuration:
+
+- **`-exThreads=7`**: Offloads work to more threads. Best for CPUs with 4+ cores. Use `3` for 2-core CPUs.
 - **`-enableHT`**: Uses logical cores in addition to physical cores. Test whether this helps or harms your system.
 - **`-hugepages`**: Enables large memory pages for allocation. Test on your system.
-- **`-noLogs`**: Disables log writing. Slight performance gain. Disable this when troubleshooting.
 
 The parameter `-cpuCount=1` is sometimes recommended for fixing certain crashes, but it significantly reduces performance. Try it only if other solutions have failed.
+
+Do not use `-malloc` parameters. The old `tbb4malloc_bi` recommendation is outdated and the game allocates memory correctly by default.
+
+## Proton-Specific Settings
+
+### Mission Start Freezes
+
+If Arma 3 freezes when a mission starts, disable Esync for the game. This applies to Proton 10 and older; Proton 11 obsoleted the variable.
+
+```         
+PROTON_NO_ESYNC=1 %command%
+```
+
+### Variables That Do Nothing on Current Proton
+
+- **`PROTON_ENABLE_NVAPI`**: This was a Proton-GE-era variable. Current Proton enables NVAPI by default. Setting it does nothing.
+- **`PROTON_FSR`**: This was a Proton 6.x-era variable. It was replaced by `WINE_FULLSCREEN_FSR`. Setting it does nothing.
+- **`WINE_FULLSCREEN_FSR`**: This is a Proton-GE feature only. It does nothing on official Proton builds.
+
+### Measuring Performance
+
+**`DXVK_HUD`** draws an in-game overlay with frame rate, frame time, and GPU information. Use it to measure the effect of any change, then remove it.
+
+```         
+DXVK_HUD=fps %command%
+```
 
 ## General Linux Gaming Optimisations
 
