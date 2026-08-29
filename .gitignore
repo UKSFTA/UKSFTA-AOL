@@ -12,7 +12,7 @@ _site/
 
 # Local config/cache
 .config/
-config
+!config
 version
 .markdownlint.json
 .prettierrc
@@ -27,7 +27,6 @@ Thumbs.db
 # Tooling session state
 .omo/
 .opencode/
-EOF
 
 /.quarto/
 **/*.quarto_ipynb
