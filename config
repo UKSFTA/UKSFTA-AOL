@@ -78,19 +78,6 @@ ESYNC=true
 FSYNC=true
 
 # -----------------------------------------------------------------------------
-# RUNTIME SHARE DIRS
-# -----------------------------------------------------------------------------
-# Directories exposed to Arma's container. Steam Linux Runtime 4 isolates
-# the container from the host. ACRE2 and TFAR need /tmp shared so Arma and
-# TeamSpeak join the same wineserver. Arma also needs your real Documents
-# and Downloads folders for modlists and config.
-#
-# Format is a colon-separated list of absolute paths.
-# Leave empty for the default: /tmp:$HOME/Documents:$HOME/Downloads
-#
-RUNTIME_SHARE_DIRS=""
-
-# -----------------------------------------------------------------------------
 # STEAM COMPAT INSTALL PATH / LIBRARY PATHS (advanced)
 # -----------------------------------------------------------------------------
 # Proton builds with the gamedrive option enabled (for example Proton Hotfix)

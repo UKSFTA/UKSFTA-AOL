@@ -35,7 +35,6 @@
 #   ./Arma3Helper.sh help       – Show full usage information
 #   ./Arma3Helper.sh checkdeps  – Check required system packages
 #   ./Arma3Helper.sh listproton – List available Proton versions
-#   ./Arma3Helper.sh launchopts – Fix Arma Steam launch options (ACRE2/TFAR)
 #
 # Original Repository: https://github.com/ninelore/armaonlinux
 # Support:    https://discord.gg/p28Ra36  (ArmaOnUnix Discord)
@@ -311,12 +310,7 @@ _setup_wizard() {
             export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
             "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9
 
-            # Step 3: Ensure Arma and TeamSpeak share the container path.
-            echo ""
-            echo "Patching Steam launch options..."
-            _ensure_steam_launch_options
-
-            # Step 4: Verify the radio plugins.
+            # Step 3: Verify the radio plugins.
             echo ""
             echo "Verifying radio plugins..."
             _check_radio_plugins
@@ -1026,17 +1020,6 @@ _check_radio_connection() {
     fi
     echo -e "  \e[32m[OK]\e[0m     Arma 3 is running"
 
-    # The pipes are wineserver objects. Arma and TeamSpeak must share one
-    # wineserver, which requires the container to see the shared directory.
-    if ! _launch_options_apply_pressure_vessel; then
-        echo -e "  \e[31m[ISSUE]\e[0m  Arma's launch options do not share the container path."
-        echo "    ACRE2/TFAR need Arma and TeamSpeak on one wineserver."
-        echo "    Run:  ./Arma3Helper.sh launchopts"
-        echo "    Then restart Arma 3 once."
-        return 1
-    fi
-    echo -e "  \e[32m[OK]\e[0m     Launch options share the container path"
-
     echo ""
     echo -e "\e[32mThe radio connection path looks correct.\e[0m"
     echo "If radios still do not work, confirm in TeamSpeak that the"
@@ -1070,20 +1053,6 @@ _check_radio_connection() {
         fi
     fi
     return 0
-}
-
-# _launch_options_apply_pressure_vessel
-#   Return 0 if Arma's Steam launch options include the PRESSURE_VESSEL
-#   filesystem share that keeps Arma and TeamSpeak on one wineserver.
-_launch_options_apply_pressure_vessel() {
-    local vdf
-    for vdf in "$_STEAM_ROOT"/userdata/*/config/localconfig.vdf; do
-        [[ -f "$vdf" ]] || continue
-        if grep -q "PRESSURE_VESSEL_FILESYSTEMS_RW" "$vdf" 2>/dev/null; then
-            return 0
-        fi
-    done
-    return 1
 }
 
 # _find_latest_rpt
@@ -2248,131 +2217,6 @@ _unbind_host_dirs() {
 # to avoid prompting on informational commands like listproton, help, etc.
 # NOTE: _check_prefix_version is also launch-path only, for the same reason.
 
-# -----------------------------------------------------------------------------
-# Ensure Arma's Steam launch options set XDG_RUNTIME_DIR (ACRE2/TFAR pipe fix).
-#
-# Steam Linux Runtime 4+ gives each pressure-vessel container a private /tmp,
-# which splits the wineserver namespace between Arma (in-container) and
-# TeamSpeak (launched on the host). ACRE2/TFAR named pipes then never connect.
-# Steam launch options are the only way to set env vars inside the container,
-# so we patch localconfig.vdf automatically. Idempotent; existing launch
-# options are preserved. Run standalone with './Arma3Helper.sh launchopts'.
-# -----------------------------------------------------------------------------
-# Ensure Arma's Steam launch options expose the host paths ACRE2/TFAR and the
-# user need. Steam Linux Runtime 4+ gives each pressure-vessel container a
-# private /tmp and /home, so:
-#   - Arma's wineserver socket is invisible to TeamSpeak on the host, which
-#     breaks ACRE2/TFAR named pipes. Exposing /tmp puts the socket on host
-#     /tmp, where TeamSpeak (launched by this script) joins the same wineserver.
-#   - Arma cannot see the user's real Documents/Downloads for modlists/config.
-# This is the standard pressure-vessel mechanism (PRESSURE_VESSEL_FILESYSTEMS_RW).
-# Idempotent; existing launch options are preserved. Override the shared dirs
-# with RUNTIME_SHARE_DIRS in the config file. Run standalone with
-# './Arma3Helper.sh launchopts'.
-# -----------------------------------------------------------------------------
-_ensure_steam_launch_options() {
-    # Validate: RUNTIME_SHARE_DIRS becomes part of the Steam launch options
-    # string, so restrict it to safe characters (paths, colons, slashes).
-    # An unescaped quote or shell metacharacter could inject into the VDF or
-    # the game's command line.
-    local share_dirs="${RUNTIME_SHARE_DIRS:-/tmp:$HOME/Documents:$HOME/Downloads}"
-    # Allow spaces in paths; reject only characters that would break the VDF
-    # quote structure (quotes, backslashes, control chars).
-    if [[ "$share_dirs" =~ [\"\\] || "$share_dirs" =~ $'\x01' ]]; then
-        echo -e "\e[33mWarning\e[0m: RUNTIME_SHARE_DIRS contains invalid characters. Using /tmp only."
-        share_dirs="/tmp"
-    fi
-    local target="PRESSURE_VESSEL_FILESYSTEMS_RW=$share_dirs"
-    local patched=0 skipped=0
-
-    if ! command -v python3 &>/dev/null; then
-        echo -e "\e[33mWarning\e[0m: python3 not found – cannot auto-configure Steam launch options."
-        echo "Set this manually in Steam -> Arma 3 -> Properties -> Launch Options:"
-        echo "  $target %command%"
-        return 1
-    fi
-
-    echo "Checking Steam launch options for Arma 3..."
-    local vdf out
-    for vdf in "$_STEAM_ROOT"/userdata/*/config/localconfig.vdf; do
-        [[ -f "$vdf" ]] || continue
-        out=$(python3 - "$vdf" "$target" <<'PYEOF'
-import re, shutil, sys
-path, target = sys.argv[1], sys.argv[2]
-data = open(path, 'rb').read()
-if b'\x00' in data[:1024]:
-    print('BINARY'); sys.exit(0)
-text = data.decode('utf-8', errors='surrogateescape')
-lines = text.splitlines(keepends=True)
-block_start = None
-for i in range(len(lines) - 1):
-    if lines[i].strip() == '"107410"' and lines[i + 1].strip() == '{':
-        block_start = i
-        break
-if block_start is None:
-    print('NOAPP'); sys.exit(0)
-depth = 1
-k = block_start + 2
-found = None
-while k < len(lines) and depth > 0:
-    s = lines[k].strip()
-    if s == '{':
-        depth += 1
-    elif s == '}':
-        depth -= 1
-        if depth == 0:
-            break
-    elif depth == 1:
-        m = re.match(r'^(\s*)"LaunchOptions"\s+"(.*)"\s*$', lines[k])
-        if m:
-            found = (k, m.group(2))
-    k += 1
-if found:
-    k, old = found
-    # drop stale PRESSURE_VESSEL_FILESYSTEMS_RW / XDG_RUNTIME_DIR assignments, keep the rest
-    cleaned = re.sub(r'\b(?:PRESSURE_VESSEL_FILESYSTEMS_RW|XDG_RUNTIME_DIR)=\S*\s*', '', old).strip()
-    new_val = target if not cleaned else target + ' ' + cleaned
-    if new_val == old:
-        print('ALREADY'); sys.exit(0)
-    lines[k] = re.sub(r'^(.*)"LaunchOptions".*$', lambda m: m.group(1) + '"LaunchOptions"\t\t"' + new_val + '"', lines[k])
-else:
-    indent = re.match(r'^(\s*)', lines[block_start + 1]).group(1) + '\t'
-    lines.insert(block_start + 2, indent + '"LaunchOptions"\t\t"' + target + '"\n')
-# Keep a single backup; overwrite instead of accumulating.
-shutil.copy2(path, path + '.bak-arma3helper')
-open(path, 'w', encoding='utf-8', errors='surrogateescape').write(''.join(lines))
-print('PATCHED')
-PYEOF
-        )
-        case "$out" in
-            PATCHED) echo "  Patched launch options:  $vdf"; patched=$((patched+1));;
-            ALREADY) echo "  Already configured:     $vdf";;
-            BINARY)  echo "  Skipped (binary VDF):   $vdf"; echo "    Set manually in Steam: $target %command%"; skipped=$((skipped+1));;
-            NOAPP)   echo "  No Arma 3 entry:        $vdf";;
-            *)       echo "  Failed to patch:        $vdf"; skipped=$((skipped+1));;
-        esac
-    done
-
-    if (( skipped > 0 )); then
-        return 1
-    fi
-    if (( patched == 0 && skipped == 0 )); then
-        echo -e "\e[33mWarning\e[0m: No Steam user data found for Arma 3."
-        echo "Launch options could not be set automatically."
-        echo "Set this manually in Steam -> Arma 3 -> Properties -> Launch Options:"
-        echo "  $target %command%"
-        return 1
-    fi
-    if (( patched > 0 )); then
-        if pgrep -x steam &>/dev/null; then
-            echo -e "\e[33mNote\e[0m: Steam is running and may overwrite this change on exit."
-            echo "If it doesn't stick, close Steam fully, run './Arma3Helper.sh launchopts', then relaunch Arma."
-        else
-            echo "Done. Launch options applied – start Arma 3 and ACRE2 will connect."
-        fi
-    fi
-}
-
 ###############################################################################
 ## MAIN COMMAND HANDLER
 ###############################################################################
@@ -2391,7 +2235,6 @@ if [[ -z "$*" ]]; then
         fi
     fi
     _setup_wizard
-    _ensure_steam_launch_options
     _check_prefix_version
     _remove_gamepad_plugin
     # Warn if Arma is not running, since the radio plugins cannot connect
@@ -2500,15 +2343,6 @@ case "$1" in
     # -------------------------------------------------------------------------
     # Check all required system packages are installed.
         _check_dependencies
-        ;;
-
-    # -------------------------------------------------------------------------
-    "launchopts")
-    # -------------------------------------------------------------------------
-    # Patch Arma 3's Steam launch options with XDG_RUNTIME_DIR so Arma and
-    # TeamSpeak share a wineserver (required since Steam Linux Runtime 4
-    # isolates /tmp per container, which breaks ACRE2/TFAR named pipes).
-        _ensure_steam_launch_options
         ;;
 
     # -------------------------------------------------------------------------
@@ -2680,9 +2514,6 @@ case "$1" in
             echo "Update to Proton 11.0-2 or newer, or use Proton Experimental."
             echo ""
         fi
-        echo ""
-        echo "--- Required Arma 3 Steam Launch Options ---"
-        echo "PRESSURE_VESSEL_FILESYSTEMS_RW=${RUNTIME_SHARE_DIRS:-/tmp:$HOME/Documents:$HOME/Downloads} %command%"
         echo ""
         echo "--- Launch Command ---"
         echo "\"$PROTONEXEC\" run \"$TSPATH\""
@@ -2908,8 +2739,6 @@ case "$1" in
         echo " ./Arma3Helper.sh"
         echo "     Launch TeamSpeak 3 inside Arma 3's Wine prefix."
         echo "     Always start Arma 3 FIRST before running this."
-        echo "     Also makes sure Arma's Steam launch options expose the host"
-        echo "     paths ACRE2/TFAR need (same as 'launchopts')."
         echo ""
         echo " ./Arma3Helper.sh install [path/to/TS3-installer.exe]"
         echo "     Install TeamSpeak 3 (Windows version) into Arma's prefix."
@@ -2941,7 +2770,7 @@ case "$1" in
         echo ""
         echo " ./Arma3Helper.sh acrecheck"
         echo "     Diagnose why radio plugins cannot find the Arma 3 game"
-        echo "     instance: Arma running, container path shared, mod loaded."
+        echo "     instance: Arma running, radio mod loaded."
         echo ""
         echo " ./Arma3Helper.sh acremod"
         echo "     Install the ACRE2 plugin manually. ACRE2 normally installs"
@@ -2957,12 +2786,6 @@ case "$1" in
         echo " ./Arma3Helper.sh listproton"
         echo "     List all Proton versions installed on this system,"
         echo "     including official and custom/GE builds."
-        echo ""
-        echo " ./Arma3Helper.sh launchopts"
-        echo "     Ensure Arma's Steam launch options expose host paths to the"
-        echo "     container: /tmp (ACRE2/TFAR wineserver link) and your real"
-        echo "     Documents/Downloads (modlists, config). Requires one Arma"
-        echo "     relaunch after patching."
         echo ""
         echo " ./Arma3Helper.sh debug"
         echo "     Print full diagnostic information. Share this output when"

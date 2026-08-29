@@ -400,11 +400,11 @@ The Arma3Helper script is a command-line tool that manages the interface between
 
 The script also applies several automatic protections at every launch:
 
-- **Setup wizard**: On first use, walks through the full setup: dependency check, TeamSpeak 3 install if missing, Winetricks DLLs, launch option patch, and radio plugin verification.
+- **Setup wizard**: On first use, walks through the full setup: dependency check, TeamSpeak 3 install if missing, Winetricks DLLs, and radio plugin verification.
 - **Prefix protection**: Warns if the configured Proton version differs from the version that created the prefix. Changing Proton versions can break audio and plugins.
 - **Gamepad plugin removal**: Deletes the crashing Gamepad and Joystick Hotkey Support plugin from the prefix (Chapter 7).
 - **S: drive preservation**: Exports the variables Proton needs so the game's `S:` drive survives (Chapter 5, "Steam Compatibility Paths").
-- **Launch options check**: Verifies Arma's Steam launch options expose the paths ACRE2 and TFAR need, and patches them if missing.
+- **Plugin verification**: Warns with the exact fix when a radio plugin is missing or disabled.
 - **Single-instance guard**: Refuses a second launch while one instance is already running, to protect the prefix.
 
 The script is required for ACRE2 and TFAR. Without it, TeamSpeak 3 will not communicate with Arma 3.
@@ -498,16 +498,6 @@ STEAM_COMPAT_INSTALL_PATH=""
 STEAM_COMPAT_LIBRARY_PATHS=""
 ```
 
-### Runtime Share Directories
-
-`RUNTIME_SHARE_DIRS` controls which host directories Arma's container can see. Steam Linux Runtime 4 isolates the game from the host. ACRE2 and TFAR need `/tmp` shared so Arma and TeamSpeak join the same wineserver. Arma also needs your real `Documents` and `Downloads` folders for modlists and config.
-
-``` bash
-RUNTIME_SHARE_DIRS=""
-```
-
-An empty value uses the default: `/tmp:$HOME/Documents:$HOME/Downloads`. The `launchopts` command writes these into Arma's Steam launch options automatically.
-
 ## Checking Dependencies
 
 After configuring the script, run the dependency check:
@@ -531,7 +521,6 @@ The following commands are available. Run `./Arma3Helper.sh help` to see this li
 - **`./Arma3Helper.sh winecfg`**: Open Wine configuration
 - **`./Arma3Helper.sh checkdeps`**: Check required packages
 - **`./Arma3Helper.sh listproton`**: List available Proton versions
-- **`./Arma3Helper.sh launchopts`**: Make sure Arma's Steam launch options expose the host paths ACRE2/TFAR need (required since Steam Linux Runtime 4 isolates the game container)
 - **`./Arma3Helper.sh debug`**: Print diagnostic information
 - **`./Arma3Helper.sh update`**: Update script from GitHub (keeps a backup at `Arma3Helper.sh.bak-arma3helper`)
 - **`./Arma3Helper.sh createconfig`**: Create external config file
@@ -728,8 +717,7 @@ If ACRE2 or TFAR reports that it "cannot find the game instance", run the connec
 The check names the exact cause in order:
 
 1.  **Arma 3 is not running.** Start Arma 3 from Steam, wait for the main menu, then start TeamSpeak 3.
-2.  **The container path is not shared.** Arma and TeamSpeak must run on the same wineserver. Run `./Arma3Helper.sh launchopts`, then restart Arma 3 once.
-3.  **The radio mod is not in the loaded mod list.** Enable ACRE2 (and TFAR if your unit uses it) in your mod launcher.
+2.  **The radio mod is not in the loaded mod list.** Enable ACRE2 (and TFAR if your unit uses it) in your mod launcher.
 
 The script also lists loaded and installed mods for debugging:
 
@@ -768,9 +756,8 @@ Run `verifyradio` after any change to confirm the whole chain is healthy before 
 If the game or its Workshop mods sit on an external drive, two mount problems can break loading:
 
 - **`noexec` mount**: Proton and Workshop mods cannot run from a drive mounted with `noexec`. Check with `cat /proc/mounts | grep noexec`. Remount with exec: `sudo mount -o remount,exec <mountpoint>`, or move the Steam library to an ext4 drive.
-- **Container visibility**: Steam Linux Runtime isolates the game. Directories outside your home, the game's library, and the Proton install are invisible to it. Arma3Helper's `launchopts` command shares the paths ACRE2 and TFAR need. The prefix's `S:` drive maps to the game library. It only works when that library is inside a shared directory.
 
-Run `./Arma3Helper.sh checkdeps` to check for the `noexec` mount problem. The container visibility fix is applied automatically by `launchopts` whenever you start TeamSpeak 3 through the script.
+Run `./Arma3Helper.sh checkdeps` to check for the `noexec` mount problem.
 
 ## Verifying ACRE2
 
@@ -974,23 +961,17 @@ The correct sequence is:
 5.  Connect to the TeamSpeak server.
 6.  Load into the mission.
 
-### Cause 2 – Steam Linux Runtime Container Isolation
+### Cause 2 – Wrong Wine Server (Rare)
 
-Newer versions of Steam Linux Runtime 4 (pressure-vessel) isolate `/tmp` and `/home` inside each game container. Arma's Wine server socket is created inside that private `/tmp`, so TeamSpeak 3 – launched on the host by the script – cannot see it. The two applications end up on separate Wine servers and ACRE2's named pipes never connect. Arma's `.rpt` log repeats `Pipe error: Read CreateFileA WinErrCode: 2` every 16 seconds.
+ACRE2's named pipes are Wine server objects. Arma 3 and TeamSpeak 3 must attach to the same Wine server. This happens automatically when both run against the same prefix, because the Wine server socket lives in `/tmp/.wine-<uid>/` and Steam Linux Runtime shares `/tmp` and `/home` with the container by default.
 
-The fix is to expose the host paths to the container through Arma 3's Steam launch options. Run:
+If you see `Pipe error: Read CreateFileA WinErrCode: 2` in Arma's `.rpt` log every 16 seconds, the two applications are on different Wine servers. This is not a launch-option problem. The usual causes are:
 
-``` bash
-./Arma3Helper.sh launchopts
-```
+- TeamSpeak 3 was launched from outside the script (for example, a native Linux TeamSpeak or a Windows TeamSpeak started with the wrong prefix). Always start TeamSpeak 3 with `./Arma3Helper.sh`.
+- The prefix was reset or moved while both applications were running. Restart Arma 3 and TeamSpeak 3.
+- Arma 3 is running but TeamSpeak 3 never started. Both must be up at the same time.
 
-This adds `PRESSURE_VESSEL_FILESYSTEMS_RW=/tmp:/home/<user>/Documents:/home/<user>/Downloads` to Arma 3's Steam launch options, preserving any existing options (such as `gamemoderun`). The script also runs this check automatically whenever it launches TeamSpeak 3.
-
-The same option gives Arma 3 access to your real Documents and Downloads folders, which is useful for modlists and configuration.
-
-After the first run, **restart Arma 3** – launch options only apply when the game starts – then launch TeamSpeak 3 with `./Arma3Helper.sh`. Verify the fix with `./Arma3Helper.sh debug`, which prints the required launch-options string.
-
-Note: the command modifies Steam's `localconfig.vdf` and keeps a backup at `localconfig.vdf.bak-arma3helper`. Close Steam fully before relying on the change, as Steam may overwrite the file on exit.
+No Steam launch options are needed. The script does not modify Arma's launch options.
 
 ## Script Cannot Find TeamSpeak 3
 
