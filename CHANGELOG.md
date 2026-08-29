@@ -7,6 +7,22 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-29
+
+### Added
+
+- Launch path warns with the exact fix when radio plugins are missing or
+  disabled after a crash, instead of failing silently in mission.
+- Launch path offers to download and install TeamSpeak 3 automatically
+  when it is absent.
+- Setup wizard now chains the full onboarding flow: dependency check,
+  TeamSpeak 3 install, Winetricks DLLs, launch option patch, and radio
+  plugin verification.
+
+### Changed
+
+- Guide: documents the self-healing launch checks and the wizard flow.
+
 ## [2.3.0] - 2026-08-29
 
 ### Added
@@ -202,7 +218,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.3.0...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.4.0...master
+[2.4.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.2...v2.2.0
