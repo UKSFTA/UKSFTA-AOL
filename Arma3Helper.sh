@@ -40,7 +40,7 @@
 # Original Repository: https://github.com/ninelore/armaonlinux
 # Support:    https://discord.gg/p28Ra36  (ArmaOnUnix Discord)
 
-_SCRIPTVER="2.2.0"
+_SCRIPTVER="2.2.1"
 
 ###############################################################################
 ## USER CONFIGURATION

@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-08-29
+
+### Added
+
+- `tfarmod` command installs the Task Force Radio plugin into the prefix
+  TeamSpeak install. TFAR does not auto-install its plugin.
+- `tfarmod --enable` re-enables a radio plugin that TeamSpeak disabled
+  after a crash (the `.disabled` suffix is TeamSpeak's crash protection).
+- `checkdeps` now verifies the ACRE2 and TFAR plugins are present in the
+  prefix TeamSpeak plugins directory, and reports disabled plugins.
+
+### Changed
+
+- `install` with no path downloads and verifies the latest TeamSpeak 3
+  Windows installer automatically, then installs silently for All Users.
+- Guide: Chapter 9 rewritten around `tfarmod`; install chapter documents
+  the auto-download flow.
+
 ## [2.2.0] - 2026-08-29
 
 ### Added
@@ -162,7 +180,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.0...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.1...master
+[2.2.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.2...v2.2.0
 [2.1.2]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.0...v2.1.1
