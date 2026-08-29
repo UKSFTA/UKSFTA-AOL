@@ -1,9 +1,9 @@
 ---
 title: "Arma 3 on Linux"
-subtitle: "A Comprehensive Installation and Configuration Guide – Including ACRE2 and TFAR"
+subtitle: "A Full Installation and Configuration Guide – Including ACRE2 and TFAR"
 author: "UKSF Taskforce Alpha Development Team"
 subject: "This guide explains how to install and configure Arma 3 on a Linux operating system, covering the full process from first-time setup to advanced radio communication using ACRE2 and TFAR."
-date: 2026-05-05
+date: 2026-08-29
 keywords: [Arma 3, Linux, Proton, ACRE2, TFAR, Installation]
 titlepage: true
 titlepage-color: "1e1e1e"
@@ -359,6 +359,8 @@ If you have Arma 3 on an external drive or a secondary Steam library, Steam will
 
 In your Steam library, click on Arma 3 and start the download. Allow the download to complete fully before proceeding.
 
+Arma 3 runs its 64-bit executable by default. The 32-bit version is deprecated since update 2.20 and the launcher no longer offers it as an option. No special configuration is needed. The current versions of the game, ACRE2, and TFAR are all 64-bit.
+
 Once the download is complete, launch Arma 3 from Steam. Wait for the game to reach the main menu. You do not need to enter any mission or server. Reaching the main menu is enough.
 
 This first launch is essential. Proton generates the Wine prefix for Arma 3 during this step. The Wine prefix must exist before TeamSpeak 3 can be installed into it. If you skip this step, subsequent steps will fail.
@@ -705,9 +707,9 @@ If your Arma 3 is on an external drive, use the path shown by the debug command 
 If the game or its Workshop mods sit on an external drive, two mount problems can break loading:
 
 - **`noexec` mount**: Proton and Workshop mods cannot run from a drive mounted with `noexec`. Check with `cat /proc/mounts | grep noexec`. Remount with exec: `sudo mount -o remount,exec <mountpoint>`, or move the Steam library to an ext4 drive.
-- **Container visibility**: Steam Linux Runtime isolates the game. Directories outside your home, the game's library, and the Proton install are invisible to it. Arma3Helper's `launchopts` command shares the paths ACRE2 and TFAR need. The prefix's `S:` drive maps to the game library; it only works when that library is inside a shared directory.
+- **Container visibility**: Steam Linux Runtime isolates the game. Directories outside your home, the game's library, and the Proton install are invisible to it. Arma3Helper's `launchopts` command shares the paths ACRE2 and TFAR need. The prefix's `S:` drive maps to the game library. It only works when that library is inside a shared directory.
 
-Run `./Arma3Helper.sh checkdeps`. It reports both problems automatically.
+Run `./Arma3Helper.sh checkdeps` to check for the `noexec` mount problem. The container visibility fix is applied automatically by `launchopts` whenever you start TeamSpeak 3 through the script.
 
 ## Verifying ACRE2
 
@@ -888,6 +890,8 @@ Alternatively set it through winecfg:
 
 Navigate to the **Libraries** tab and add `xaudio2_9` with the override set to **Native**.
 
+If crackling persists after the DLL fix, set the audio sample rate to 44.1 kHz in your desktop audio settings. This is a reported workaround for the XAudio 2.9 regression. You can also roll Arma 3 back to update 2.20 while Bohemia investigates, but the DLL fix resolves it for most users.
+
 ## Arma 3 Crashes on Startup
 
 A crash immediately after launch, before the main menu appears, usually indicates missing Vulkan support. Install the appropriate package (Chapter 2, 'Resolving Startup Crashes').
@@ -981,6 +985,42 @@ ls -la "/path/shown/in/debug/output/ts3client_win64.exe"
 
 If the file is in `AppData` rather than `Program Files`, TeamSpeak 3 was installed as "current user only". Uninstall it and repeat the installation process (Chapter 7), selecting "Install for All Users".
 
+## Proton-Specific Issues
+
+The following problems come from ProtonDB reports for Arma 3. Each is uncommon but appears across multiple user reports.
+
+### Game Freezes on Fast Mouse Movement
+
+High-polling-rate mice (8000 Hz) can freeze the game during fast movement. Set this launch option:
+
+```         
+PROTON_USE_RAW_INPUT=1 %command%
+```
+
+Alternatively, lower the mouse polling rate to 1000 Hz in its configuration software.
+
+### Game Runs at 640×480 Resolution
+
+Some Proton versions lock Arma 3 to 640×480 on certain GPUs. Update to Proton 9.0-4 or newer, then restart the game.
+
+### Mouse Cursor Escapes the Game Window
+
+On multi-monitor setups the cursor can leave the game window and land on another screen. Use windowed fullscreen mode, or set these options in `winecfg` (Chapter 6):
+
+- **Automatically capture the mouse in full screen windows**
+
+### Cursor Jumps or Delays on AMD GPUs
+
+Latest Mesa releases can cause cursor problems under some compositors. Disable the compositor for the game session, or run Arma 3 inside gamescope:
+
+``` bash
+gamescope -f -- %command%
+```
+
+### VRAM Usage Grows Over Time
+
+Some users report a memory leak that fills VRAM after several hours of play. Restart Arma 3 when frame rate drops. There is no known fix as of this writing.
+
 ## Getting Further Help
 
 If this troubleshooting chapter does not resolve your problem, gather diagnostic information and ask for help on the ArmaOnUnix Discord:
@@ -1016,21 +1056,17 @@ The following baseline is safe for all systems and is what the current Linux gui
 - **`-world=empty`**: Loads an empty world for the main menu. Significant startup speedup.
 - **`-noLogs`**: Disables log writing. Slight performance gain. Remove this when troubleshooting.
 
-The following parameters help only some systems. Try them individually to identify which help your configuration:
-
-- **`-exThreads=7`**: Offloads work to more threads. Best for CPUs with 4+ cores. Use `3` for 2-core CPUs.
-- **`-enableHT`**: Uses logical cores in addition to physical cores. Test whether this helps or harms your system.
-- **`-hugepages`**: Enables large memory pages for allocation. Test on your system.
+Do not use the old CPU-tuning parameters. Since update 2.20 the engine configures its own thread count and CPU affinity. Manual overrides such as `-cpuCount`, `-exThreads`, and `-enableHT` now reduce performance on most systems. Bohemia Interactive states this directly in the 2.20 performance optimisation report. Leave thread settings alone.
 
 The parameter `-cpuCount=1` is sometimes recommended for fixing certain crashes, but it significantly reduces performance. Try it only if other solutions have failed.
 
-Do not use `-malloc` parameters. The old `tbb4malloc_bi` recommendation is outdated and the game allocates memory correctly by default.
+Do not use `-malloc` parameters. The old `tbb4malloc_bi` recommendation is outdated and the game allocates memory correctly by default. Custom allocators such as `mimalloc` are verified on Windows only. Their benefit under Proton is unproven, and BattlEye may block them.
 
 ## Proton-Specific Settings
 
 ### Mission Start Freezes
 
-If Arma 3 freezes when a mission starts, disable Esync for the game. This applies to Proton 10 and older; Proton 11 obsoleted the variable.
+If Arma 3 freezes when a mission starts, disable Esync for the game. This applies to Proton 10 and older. Proton 11 obsoleted the variable.
 
 ```         
 PROTON_NO_ESYNC=1 %command%
