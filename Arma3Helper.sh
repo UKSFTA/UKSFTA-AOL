@@ -1326,7 +1326,7 @@ case "$1" in
     # -------------------------------------------------------------------------
     "debug")
     # -------------------------------------------------------------------------
-    # Print comprehensive debug information.
+    # Print full debug information.
     # Share this output when asking for help on the Discord.
         echo ""
         echo "================================================================"
@@ -1486,7 +1486,7 @@ case "$1" in
         echo " ./Arma3Helper.sh"
         echo "     Launch TeamSpeak 3 inside Arma 3's Wine prefix."
         echo "     Always start Arma 3 FIRST before running this."
-        echo "     Also ensures Arma's Steam launch options expose the host"
+        echo "     Also makes sure Arma's Steam launch options expose the host"
         echo "     paths ACRE2/TFAR need (same as 'launchopts')."
         echo ""
         echo " ./Arma3Helper.sh install <path/to/TS3-installer.exe>"
