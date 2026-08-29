@@ -1885,8 +1885,10 @@ case "$1" in
                 exit 1
             fi
         else
-            # Cannot write to $0 (e.g. installed in /usr/bin) – download to cwd.
-            _dest="$(dirname "$0")/Arma3Helper.sh"
+            # Cannot write to $0 (e.g. installed in /usr/bin). Download to the
+            # current working directory, which the user owns. Never write to
+            # dirname "$0" — that is the same permission-denied directory.
+            _dest="$PWD/Arma3Helper.sh"
             echo "Cannot write to '$0' (permission denied)."
             echo "Downloading to: $_dest"
             if curl -fo "$_dest" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
