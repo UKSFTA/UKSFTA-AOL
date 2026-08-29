@@ -40,7 +40,7 @@
 # Original Repository: https://github.com/ninelore/armaonlinux
 # Support:    https://discord.gg/p28Ra36  (ArmaOnUnix Discord)
 
-_SCRIPTVER="2.0.2"
+_SCRIPTVER="2.1.0"
 
 ###############################################################################
 ## USER CONFIGURATION
@@ -339,6 +339,8 @@ _remove_gamepad_plugin() {
     if [[ "$found" == 1 ]]; then
         echo "Gamepad plugin removed. TS3 will no longer crash on startup."
     fi
+    # Nothing to remove is a success, not an error.
+    return 0
 }
 
 # _find_steam_root
