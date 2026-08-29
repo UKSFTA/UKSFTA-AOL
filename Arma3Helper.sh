@@ -175,6 +175,8 @@ PROTON_OFFICIAL_VERSION=""
 COMPAT_DATA_PATH=""
 STEAM_LIBRARY_PATH=""
 PROTON_CUSTOM_VERSION=""
+STEAM_COMPAT_INSTALL_PATH=""
+STEAM_COMPAT_LIBRARY_PATHS=""
 ESYNC=true
 FSYNC=true
 EOF
@@ -682,6 +684,28 @@ fi
 # These tell Proton where to find Arma's Wine prefix and the Steam client.
 export STEAM_COMPAT_DATA_PATH="$COMPAT_DATA_PATH"
 export STEAM_COMPAT_CLIENT_INSTALL_PATH="$_STEAM_ROOT"
+
+# Proton builds with the gamedrive option enabled (for example Proton Hotfix)
+# need STEAM_COMPAT_INSTALL_PATH and STEAM_COMPAT_LIBRARY_PATHS to resolve the
+# game's Steam library during 'proton run'. When they are missing, Proton
+# deletes the S: drive mapping from the live prefix. A running Arma then fails
+# server signature checks on every S:-pathed file, which causes random
+# "Wrong signature for file" kicks while TeamSpeak is open.
+# The compatdata folder always lives in the same Steam library as the game,
+# so derive both from COMPAT_DATA_PATH. Only export them when the derived
+# library actually contains the game, so a wrong COMPAT_DATA_PATH can never
+# point Proton at a wrong library.
+if [[ -z "$STEAM_COMPAT_INSTALL_PATH" && -z "$STEAM_COMPAT_LIBRARY_PATHS" ]]; then
+    _ARMA_LIBRARY="$(readlink -f "$COMPAT_DATA_PATH" 2>/dev/null)"
+    _ARMA_LIBRARY="${_ARMA_LIBRARY%/compatdata/*}"
+    if [[ -d "$_ARMA_LIBRARY/common/Arma 3" ]]; then
+        export STEAM_COMPAT_INSTALL_PATH="$_ARMA_LIBRARY/common/Arma 3"
+        export STEAM_COMPAT_LIBRARY_PATHS="$_ARMA_LIBRARY"
+    else
+        echo -e "\e[33mWarning\e[0m: Could not locate Arma's Steam library from COMPAT_DATA_PATH."
+        echo "Without STEAM_COMPAT_INSTALL_PATH and STEAM_COMPAT_LIBRARY_PATHS, newer Proton versions remove the prefix's S: drive, which breaks server signature checks. Export both in your config file."
+    fi
+fi
 export SteamAppId="107410"
 export SteamGameId="107410"
 
@@ -1377,6 +1401,8 @@ case "$1" in
         echo "--- Environment Variables ---"
         echo "STEAM_COMPAT_DATA_PATH:          $STEAM_COMPAT_DATA_PATH"
         echo "STEAM_COMPAT_CLIENT_INSTALL_PATH: $STEAM_COMPAT_CLIENT_INSTALL_PATH"
+        echo "STEAM_COMPAT_INSTALL_PATH:       $STEAM_COMPAT_INSTALL_PATH"
+        echo "STEAM_COMPAT_LIBRARY_PATHS:      $STEAM_COMPAT_LIBRARY_PATHS"
         echo "SteamAppId / SteamGameId:        $SteamAppId / $SteamGameId"
         echo "ESync:  $ESYNC"
         echo "FSync:  $FSYNC"

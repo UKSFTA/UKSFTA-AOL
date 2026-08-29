@@ -89,3 +89,17 @@ FSYNC=true
 # Leave empty for the default: /tmp:$HOME/Documents:$HOME/Downloads
 #
 RUNTIME_SHARE_DIRS=""
+
+# -----------------------------------------------------------------------------
+# STEAM COMPAT INSTALL PATH / LIBRARY PATHS (advanced)
+# -----------------------------------------------------------------------------
+# Proton builds with the gamedrive option enabled (for example Proton Hotfix)
+# need these two variables to resolve the game's Steam library during
+# 'proton run'. Without them, Proton deletes the S: drive from the prefix,
+# which breaks server signature checks. The script derives them from
+# COMPAT_DATA_PATH automatically. Set them here only to override that.
+#
+# Leave both empty unless you know you need an override.
+#
+STEAM_COMPAT_INSTALL_PATH=""
+STEAM_COMPAT_LIBRARY_PATHS=""

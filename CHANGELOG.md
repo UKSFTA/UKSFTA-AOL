@@ -11,6 +11,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Proton builds with gamedrive enabled (for example Proton Hotfix) deleted
+  the prefix's S: drive when TeamSpeak was launched. The script now exports
+  STEAM_COMPAT_INSTALL_PATH and STEAM_COMPAT_LIBRARY_PATHS, derived from
+  COMPAT_DATA_PATH. This prevents multiplayer signature kicks.
 - `createconfig` downloaded a config template that did not exist in the
   repository. The command now works. The template file is in the repo.
 - `.gitignore` excluded the `config` file from tracking.
