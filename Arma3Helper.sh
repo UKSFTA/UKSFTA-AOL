@@ -1117,6 +1117,103 @@ _list_loaded_mods() {
     return 0
 }
 
+# _check_radio_chain
+#   Verify the full chain for a radio mod: downloaded in Workshop, loaded
+#   in the running game, and plugin present in TeamSpeak. Names the exact
+#   failing stage so a user knows what to fix.
+#   Args: $1 = mod label, $2 = workshop id (first), $3 = plugin glob,
+#         $4 = extra workshop ids (space-separated, TFAR older version),
+#         $5 = install command suffix (acremod / tfarmod).
+_check_radio_chain() {
+    local label="$1" wid="$2" plugglob="$3" extra_ids="$4" modcmd="$5"
+    local ok=1
+
+    echo ""
+    echo "--- $label ---"
+
+    # Stage 1: mod downloaded in Workshop (any Steam library).
+    local lib_path ws found=0
+    while IFS= read -r lib_path; do
+        [[ -z "$lib_path" ]] && continue
+        if [[ -d "$lib_path/steamapps/workshop/content/107410/$wid" ]]; then
+            found=1
+            break
+        fi
+    done < <(_find_steam_libraries)
+    if [[ "$found" == 1 ]]; then
+        echo -e "  \e[32m[OK]\e[0m     Workshop mod downloaded"
+    else
+        echo -e "  \e[31m[FAIL]\e[0m  Workshop mod not downloaded (id $wid)"
+        echo "    Subscribe to it in the Steam Workshop and let it download."
+        ok=0
+    fi
+
+    # Stage 2: mod in the loaded mod list (live process or RPT).
+    local mods id loaded=0
+    mods="$(_parse_loaded_mods)"
+    if [[ -n "$mods" ]]; then
+        while IFS= read -r id; do
+            [[ -z "$id" ]] && continue
+            if [[ "$id" == "$wid" || " $extra_ids " == *" $id "* ]]; then
+                loaded=1
+                break
+            fi
+        done <<< "$mods"
+    fi
+    if [[ "$loaded" == 1 ]]; then
+        echo -e "  \e[32m[OK]\e[0m     Mod loaded in the current game session"
+    else
+        echo -e "  \e[33m[WARN]\e[0m  Mod not in the loaded list"
+        echo "    Enable it in your mod launcher, then restart Arma 3."
+        ok=0
+    fi
+
+    # Stage 3: plugin DLL present in the prefix TeamSpeak install.
+    local plugins_dir="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+    local plugin_found=0 disabled=0 f
+    if [[ -d "$plugins_dir" ]]; then
+        # shellcheck disable=SC2012
+        for f in "$plugins_dir"/$plugglob; do
+            [[ -f "$f" ]] && plugin_found=1
+        done
+        # shellcheck disable=SC2012
+        for f in "$plugins_dir"/${plugglob}.disabled "$plugins_dir"/../config/plugins/${plugglob}.disabled; do
+            [[ -f "$f" ]] && disabled=1
+        done
+    fi
+    if [[ "$plugin_found" == 1 ]]; then
+        echo -e "  \e[32m[OK]\e[0m     TeamSpeak plugin installed"
+    elif [[ "$disabled" == 1 ]]; then
+        echo -e "  \e[31m[FAIL]\e[0m  TeamSpeak plugin disabled after a crash"
+        echo "    Re-enable with:  ./Arma3Helper.sh $modcmd --enable"
+        ok=0
+    else
+        echo -e "  \e[31m[FAIL]\e[0m  TeamSpeak plugin not installed"
+        echo "    Install with:  ./Arma3Helper.sh $modcmd"
+        ok=0
+    fi
+
+    return $ok
+}
+
+# _verify_radio
+#   Verify the complete chain for both radio mods.
+_verify_radio() {
+    local ok=0
+    _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod" || ok=1
+    _check_radio_chain "TFAR" "894678801" "TFAR_*.dll" "620019431" "tfarmod" || ok=1
+
+    echo ""
+    if [[ "$ok" == 0 ]]; then
+        echo -e "\e[32mAll radio mods are fully installed and loaded.\e[0m"
+    else
+        echo -e "\e[33mOne or more radio mods need attention.\e[0m"
+        echo "Fix the flagged stage above, then re-run:  ./Arma3Helper.sh verifyradio"
+    fi
+    echo ""
+    return 0
+}
+
 # _find_tfar_plugin_source
 #   Locate the TFAR plugin DLLs on the host. TFAR ships its plugin in the
 #   Workshop mod folder (task_force_radio.ts3_plugin, a zip archive) or in
@@ -2610,6 +2707,14 @@ case "$1" in
     ;;
 
     # -------------------------------------------------------------------------
+    "verifyradio")
+    # -------------------------------------------------------------------------
+    # Verify the full chain for ACRE2 and TFAR: Workshop mod downloaded,
+    # mod loaded in the running game, plugin installed in TeamSpeak.
+    _verify_radio
+    ;;
+
+    # -------------------------------------------------------------------------
     "acremod")
     # -------------------------------------------------------------------------
     # Install the ACRE2 plugin into the prefix TeamSpeak install. ACRE2
@@ -2718,6 +2823,10 @@ case "$1" in
         echo " ./Arma3Helper.sh listmods"
         echo "     List mods installed and mods loaded in the latest session."
         echo "     Use 'listmods loaded' or 'listmods installed' for one list."
+        echo ""
+        echo " ./Arma3Helper.sh verifyradio"
+        echo "     Verify the full radio chain for ACRE2 and TFAR: Workshop"
+        echo "     mod downloaded, mod loaded in the game, plugin in TeamSpeak."
         echo ""
         echo " ./Arma3Helper.sh acrecheck"
         echo "     Diagnose why radio plugins cannot find the Arma 3 game"

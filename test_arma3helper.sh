@@ -590,6 +590,104 @@ unset COMPAT_DATA_PATH
 echo ""
 
 # ===========================================================================
+echo "── 8d. Full radio chain verification ──"
+# ===========================================================================
+# verifyradio must check all three stages: Workshop mod downloaded, mod in
+# the loaded list, plugin in the prefix TeamSpeak install. Test the ACRE2
+# chain with a mock library + mock RPT + mock prefix.
+
+# Source the real functions.
+_plugin_fn="$(sed -n '/^_check_radio_chain() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_verify_radio() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_find_steam_root() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_find_steam_libraries() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_find_latest_rpt() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_get_arma_cmdline() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_parse_loaded_mods() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+
+MOCK_HOME="$TMPDIR_TEST/chain-home"
+MOCK_LIB="$TMPDIR_TEST/chain-lib"
+mkdir -p "$MOCK_HOME/.steam/steam/steamapps"
+mkdir -p "$MOCK_HOME/.steam/steam/config"
+cat > "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
+"libraryfolders"
+{
+	"0"
+	{
+		"path"		"__MOCK_LIB__"
+	}
+}
+VDF
+sed -i "s|__MOCK_LIB__|$MOCK_LIB|" "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf"
+
+MOCK_COMPAT="$TMPDIR_TEST/chain-compat/107410"
+export COMPAT_DATA_PATH="$MOCK_COMPAT"
+TS3_PLUGINS="$MOCK_COMPAT/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+mkdir -p "$TS3_PLUGINS"
+
+# Case A: nothing installed -> all three stages fail.
+# The Workshop mod dir and plugin DLL are deliberately absent here.
+_out="$( HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod" )"
+if echo "$_out" | grep -q "Workshop mod not downloaded" && \
+   echo "$_out" | grep -q "Mod not in the loaded list" && \
+   echo "$_out" | grep -q "TeamSpeak plugin not installed"; then
+    pass "chain reports all stages when nothing is installed"
+else
+    fail "chain all-fail case wrong"
+fi
+
+# Case B: all three stages satisfied -> all OK
+mkdir -p "$MOCK_LIB/steamapps/workshop/content/107410/751965892"
+touch "$MOCK_LIB/steamapps/workshop/content/107410/751965892/mod.cpp"
+touch "$TS3_PLUGINS/acre2_win64.dll"
+RPT_DIR="$MOCK_COMPAT/pfx/drive_c/users/steamuser/AppData/Local/Arma 3"
+mkdir -p "$RPT_DIR"
+cat > "$RPT_DIR/Arma3_x64_2026-08-29_00-00-00.rpt" <<'RPT'
+=====================================================================
+== S:\common\Arma 3\Arma3_x64.exe
+== "S:\common\Arma 3\Arma3_x64.exe" -mod=S:\workshop\content\107410\751965892
+=====================================================================
+RPT
+_out="$( HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod" )"
+if echo "$_out" | grep -q "Workshop mod downloaded" && \
+   echo "$_out" | grep -q "Mod loaded in the current game session" && \
+   echo "$_out" | grep -q "TeamSpeak plugin installed"; then
+    pass "chain reports all OK when fully installed"
+else
+    fail "chain all-ok case wrong (got: $_out)"
+fi
+
+# Case C: plugin disabled after crash -> flagged distinctly
+rm -f "$TS3_PLUGINS/acre2_win64.dll"
+touch "$TS3_PLUGINS/acre2_win64.dll.disabled"
+_out="$( HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod" )"
+if echo "$_out" | grep -q "disabled after a crash"; then
+    pass "chain flags crash-disabled plugin"
+else
+    fail "chain disabled-plugin case wrong"
+fi
+
+# Case D: verifyradio runs both chains and summarises
+_out="$( HOME="$MOCK_HOME" _verify_radio )"
+if echo "$_out" | grep -q "ACRE2" && echo "$_out" | grep -q "TFAR"; then
+    pass "verifyradio checks both mods"
+else
+    fail "verifyradio missing a mod (got: $_out)"
+fi
+
+rm -rf "$TMPDIR_TEST/chain-home" "$TMPDIR_TEST/chain-lib" "$TMPDIR_TEST/chain-compat"
+unset COMPAT_DATA_PATH
+
+echo ""
+
+# ===========================================================================
 echo "── 9. Prefix reset backup coverage ──"
 # ===========================================================================
 # The full reset must back up BOTH profile folders (default + named),
