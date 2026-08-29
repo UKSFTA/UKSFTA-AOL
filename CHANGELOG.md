@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-08-29
+
+### Added
+
+- `xaudio2_9` in the winetricks DLL set. Arma 2.22 moved to XAudio 2.9,
+  which causes crackle under some Proton versions. This is the current
+  audio fix (replaces the obsolete `xaudio2_7` advice).
+- `mfc140` in the winetricks DLL set, matching the canonical set.
+- `checkdeps` warns when a Steam library sits on a `noexec` mount. Proton
+  and Workshop mods cannot run from such a drive.
+- `checkdeps` verifies the Proton BattlEye Runtime is installed.
+- `debug` warns on Proton 11.0-1, which re-downloads Workshop mods on
+  every launch (fixed in 11.0-2).
+
+### Fixed
+
+- Guide: replaced the obsolete `xaudio2_7=n` audio advice with `xaudio2_9`.
+
 ## [2.1.0] - 2026-08-29
 
 ### Added
@@ -104,7 +122,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.0...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.1...master
+[2.1.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.0.0...v2.0.1
