@@ -560,7 +560,9 @@ else
 fi
 
 # Case B: mod name resolution from mod.cpp
-_nm="$(_mod_name_from_workshop 751965892)"
+# _mod_name_from_workshop walks _find_steam_libraries, so HOME must point
+# at the mock Steam install (as in the CI runner, which has no real Steam).
+_nm="$( HOME="$MOCK_HOME" _mod_name_from_workshop 751965892 )"
 if [[ "$_nm" == "Advanced Combat Radio Environment 2" ]]; then
     pass "mod name resolved from mod.cpp"
 else
@@ -568,7 +570,7 @@ else
 fi
 
 # Case C: installed list excludes the content root and names known mods
-_inst="$(_list_installed_mods)"
+_inst="$( HOME="$MOCK_HOME" _list_installed_mods )"
 if ! echo "$_inst" | grep -q "107410\s" && \
    echo "$_inst" | grep -q "Advanced Combat Radio Environment 2"; then
     pass "installed mods list excludes root and names mods"
@@ -577,7 +579,7 @@ else
 fi
 
 # Case D: loaded list flags ACRE2 as loaded
-_load="$(_list_loaded_mods)"
+_load="$( HOME="$MOCK_HOME" _list_loaded_mods )"
 if echo "$_load" | grep -q "ACRE2 is loaded"; then
     pass "loaded mods flags ACRE2"
 else
