@@ -197,28 +197,6 @@ _setup_wizard() {
         fi
     fi
 }
-_setup_wizard
-
-# -----------------------------------------------------------------------------
-# PREFIX PROTECTION
-# -----------------------------------------------------------------------------
-# Check if the prefix version matches the configured Proton version
-_check_prefix_version() {
-    local version_file="$COMPAT_DATA_PATH/../version"
-    if [[ -f "$version_file" ]]; then
-        local stored_version
-        stored_version=$(cat "$version_file")
-        # Simple heuristic: check if the configured version is in the stored version string
-        if [[ -n "$PROTON_OFFICIAL_VERSION" && "$stored_version" != *"$PROTON_OFFICIAL_VERSION"* ]]; then
-            echo -e "\e[33mWarning\e[0m: Proton version mismatch!"
-            echo "Configured: $PROTON_OFFICIAL_VERSION"
-            echo "Prefix set to: $stored_version"
-            echo "Changing Proton versions can cause audio or plugin issues."
-            _confirmation "Do you want to continue anyway?"
-        fi
-    fi
-}
-_check_prefix_version
 
 ###############################################################################
 ## HELPER FUNCTIONS
@@ -302,8 +280,9 @@ _find_steam_libraries() {
     fi
 
     if [[ -z "$vdf" ]]; then
-        # VDF not found – fall back to the default steamapps path
-        echo "$steam_root/steamapps"
+        # VDF not found – fall back to the steam root.
+        # Consumers append /steamapps themselves, so return the root, not steamapps.
+        echo "$steam_root"
         return
     fi
 
@@ -707,8 +686,179 @@ if [[ "$PROTON_OFFICIAL_VERSION" == "Proton Experimental" || \
     PROTON_OFFICIAL_VERSION="- Experimental"
     IS_EXPERIMENTAL=true
 elif [[ -z "$PROTON_OFFICIAL_VERSION" ]]; then
-    # Default to Proton 9.0 if nothing is set
-    PROTON_OFFICIAL_VERSION="9.0"
+    # Auto-detect from the prefix: read the version file that records which
+    # Proton created Arma 3's Wine prefix, then match it to an installed build.
+    _prefix_version_file="$COMPAT_DATA_PATH/../version"
+    _prefix_version=""
+    if [[ -f "$_prefix_version_file" ]]; then
+        _prefix_version="$(cat "$_prefix_version_file")"
+    fi
+
+    if [[ -n "$_prefix_version" ]]; then
+        # Match the prefix version to an installed Proton directory.
+        # Strategy: (1) substring match on directory name, (2) extract and
+        # compare numeric version parts, (3) check the proton directory's own
+        # version file.  Covers both official ("Proton 11.0-2") and custom
+        # ("Proton-CachyOS Latest") naming conventions.
+        _match_dir=""
+        _match_is_custom=false
+
+        while IFS= read -r lib_path; do
+            [[ -n "$_match_dir" ]] && break
+
+            # Check steamapps/common (official Proton)
+            _sa="$lib_path/steamapps"
+            if [[ -d "$_sa/common" ]]; then
+                while IFS= read -r _dir; do
+                    _ver="$(basename "$_dir")"
+                    [[ -f "$_dir/proton" ]] || continue
+                    # Skip non-game runtimes
+                    [[ "$_ver" == *"Runtime"* || "$_ver" == *"BattlEye"* || \
+                       "$_ver" == *"Hotfix"* || "$_ver" == *"Experimental"* ]] && continue
+                    # Strategy 1: direct substring
+                    if [[ "$_ver" == *"$_prefix_version"* ]]; then
+                        _match_dir="$_dir"
+                        break
+                    fi
+                    # Strategy 2: compare extracted version numbers
+                    # Strip known prefixes, extract X.Y or X.Y.Z
+                    _norm="${_ver// /-}"  # normalize spaces to hyphens
+                    _norm="${_norm#Proton}"
+                    _norm="${_norm#-}"
+                    if [[ "$_norm" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+                        _dir_num="${BASH_REMATCH[1]}"
+                        _pv="${_prefix_version// /-}"
+                        _pv="${_pv#Proton}"
+                        _pv="${_pv#-}"
+                        if [[ "$_pv" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+                            _pv_num="${BASH_REMATCH[1]}"
+                            if [[ "$_pv_num" == "$_dir_num" ]]; then
+                                _match_dir="$_dir"
+                                break
+                            fi
+                        fi
+                    fi
+                    # Strategy 3: check the proton directory's own version file
+                    if [[ -f "$_dir/version" ]]; then
+                        _dir_ver="$(cat "$_dir/version")"
+                        # Try direct substring first
+                        if [[ "$_dir_ver" == *"$_prefix_version"* ]]; then
+                            _match_dir="$_dir"
+                            break
+                        fi
+                        # Try extracting version numbers from the version file
+                        if [[ -n "$_pv_num" ]]; then
+                            _fv="${_dir_ver// /-}"
+                            _fv="${_fv#Proton}"
+                            _fv="${_fv#-}"
+                            if [[ "$_fv" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+                                _fv_num="${BASH_REMATCH[1]}"
+                                if [[ "$_pv_num" == "$_fv_num" ]]; then
+                                    _match_dir="$_dir"
+                                    break
+                                fi
+                            fi
+                        fi
+                    fi
+                done < <(find "$_sa/common" -maxdepth 1 -type d -name "Proton*")
+            fi
+
+            # Check compatibilitytools.d (custom Proton builds)
+            if [[ -z "$_match_dir" && -d "$lib_path/compatibilitytools.d" ]]; then
+                while IFS= read -r _dir; do
+                    _ver="$(basename "$_dir")"
+                    [[ -f "$_dir/proton" ]] || continue
+                    # Skip non-game runtimes
+                    [[ "$_ver" == *"Runtime"* || "$_ver" == *"BattlEye"* || \
+                       "$_ver" == *"Hotfix"* || "$_ver" == *"Experimental"* ]] && continue
+                    # Strategy 1: direct substring
+                    if [[ "$_ver" == *"$_prefix_version"* ]]; then
+                        _match_dir="$_dir"
+                        _match_is_custom=true
+                        break
+                    fi
+                    # Strategy 2: compare extracted version numbers
+                    _norm="${_ver// /-}"
+                    _norm="${_norm#Proton}"
+                    _norm="${_norm#-}"
+                    if [[ "$_norm" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+                        _dir_num="${BASH_REMATCH[1]}"
+                        _pv="${_prefix_version// /-}"
+                        _pv="${_pv#Proton}"
+                        _pv="${_pv#-}"
+                        if [[ "$_pv" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+                            _pv_num="${BASH_REMATCH[1]}"
+                            if [[ "$_pv_num" == "$_dir_num" ]]; then
+                                _match_dir="$_dir"
+                                _match_is_custom=true
+                                break
+                            fi
+                        fi
+                    fi
+                    # Strategy 3: check the proton directory's own version file
+                    if [[ -f "$_dir/version" ]]; then
+                        _dir_ver="$(cat "$_dir/version")"
+                        # Try direct substring first
+                        if [[ "$_dir_ver" == *"$_prefix_version"* ]]; then
+                            _match_dir="$_dir"
+                            _match_is_custom=true
+                            break
+                        fi
+                        # Try extracting version numbers from the version file
+                        if [[ -n "$_pv_num" ]]; then
+                            _fv="${_dir_ver// /-}"
+                            _fv="${_fv#Proton}"
+                            _fv="${_fv#-}"
+                            if [[ "$_fv" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
+                                _fv_num="${BASH_REMATCH[1]}"
+                                if [[ "$_pv_num" == "$_fv_num" ]]; then
+                                    _match_dir="$_dir"
+                                    _match_is_custom=true
+                                    break
+                                fi
+                            fi
+                        fi
+                    fi
+                done < <(find "$lib_path/compatibilitytools.d" -maxdepth 1 -type d -name "Proton*")
+            fi
+        done < <(_find_steam_libraries)
+
+        if [[ -n "$_match_dir" ]]; then
+            if [[ "$_match_is_custom" == true ]]; then
+                PROTONEXEC="$_match_dir/proton"
+            else
+                _ver="$(basename "$_match_dir")"
+                PROTON_OFFICIAL_VERSION="${_ver#Proton }"
+            fi
+        fi
+    fi
+
+    # Fallback: pick the highest installed version if prefix matching failed.
+    if [[ -z "$PROTON_OFFICIAL_VERSION" && -z "$PROTONEXEC" ]]; then
+        _best_proton=""
+        while IFS= read -r lib_path; do
+            _sa="$lib_path/steamapps"
+            if [[ -d "$_sa/common" ]]; then
+                while IFS= read -r _dir; do
+                    _ver="$(basename "$_dir")"
+                    if [[ -f "$_dir/proton" ]] && \
+                       [[ "$_ver" == *"Proton "* ]] && \
+                       [[ "$_ver" != *"Runtime"* ]] && \
+                       [[ "$_ver" != *"BattlEye"* ]] && \
+                       [[ "$_ver" != *"Hotfix"* ]] && \
+                       [[ "$_ver" != *"-"* ]]; then
+                        _num="${_ver#Proton }"
+                        _best_proton="$(printf '%s\n' "$_num" "$_best_proton" | sort -V | tail -1)"
+                    fi
+                done < <(find "$_sa/common" -maxdepth 1 -type d -name "Proton*")
+            fi
+        done < <(_find_steam_libraries)
+        if [[ -n "$_best_proton" ]]; then
+            PROTON_OFFICIAL_VERSION="$_best_proton"
+        else
+            PROTON_OFFICIAL_VERSION="10.0"
+        fi
+    fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -781,6 +931,31 @@ if [[ -z "$PROTONEXEC" ]]; then
     echo "  Set PROTON_OFFICIAL_VERSION in your config to match an installed version."
     exit 1
 fi
+
+# -----------------------------------------------------------------------------
+# PREFIX PROTECTION
+# -----------------------------------------------------------------------------
+# Check if the prefix version matches the configured Proton version.
+# Must run after COMPAT_DATA_PATH and PROTON_OFFICIAL_VERSION are resolved.
+_check_prefix_version() {
+    local version_file="$COMPAT_DATA_PATH/../version"
+    if [[ -f "$version_file" ]]; then
+        local stored_version
+        stored_version=$(cat "$version_file")
+        if [[ -n "$PROTON_OFFICIAL_VERSION" && "$stored_version" != *"$PROTON_OFFICIAL_VERSION"* ]]; then
+            echo -e "\e[33mWarning\e[0m: Proton version mismatch!"
+            echo "Configured: $PROTON_OFFICIAL_VERSION"
+            echo "Prefix set to: $stored_version"
+            echo "Changing Proton versions can cause audio or plugin issues."
+            _confirmation "Do you want to continue anyway?"
+        fi
+    fi
+}
+_check_prefix_version
+
+# Run setup wizard if config is default and Arma prefix exists.
+# Must run after COMPAT_DATA_PATH is resolved.
+_setup_wizard
 
 # -----------------------------------------------------------------------------
 # Ensure Arma's Steam launch options set XDG_RUNTIME_DIR (ACRE2/TFAR pipe fix).
@@ -887,6 +1062,13 @@ PYEOF
     if (( skipped > 0 )); then
         return 1
     fi
+    if (( patched == 0 && skipped == 0 )); then
+        echo -e "\e[33mWarning\e[0m: No Steam user data found for Arma 3."
+        echo "Launch options could not be set automatically."
+        echo "Set this manually in Steam -> Arma 3 -> Properties -> Launch Options:"
+        echo "  $target %command%"
+        return 1
+    fi
     if (( patched > 0 )); then
         if pgrep -x steam &>/dev/null; then
             echo -e "\e[33mNote\e[0m: Steam is running and may overwrite this change on exit."
@@ -914,7 +1096,7 @@ if [[ -z "$*" ]]; then
     echo "------------------------------------------------------------"
     echo ""
     "$PROTONEXEC" run "$TSPATH"
-    exit 0
+    exit $?
 fi
 
 case "$1" in
@@ -1194,10 +1376,34 @@ case "$1" in
         echo ""
         _confirmation "Proceed with update?"
         _checkinstall curl
-        curl -fo "$0" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh
-        chmod +x "$0"
-        echo ""
-        echo "Update complete. Run './Arma3Helper.sh debug' to verify."
+        if [[ -w "$0" ]]; then
+            # Can write to the script in place – update directly.
+            if curl -fo "$0" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
+                chmod +x "$0"
+                echo ""
+                echo "Update complete. Run './Arma3Helper.sh debug' to verify."
+            else
+                echo ""
+                echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
+                exit 1
+            fi
+        else
+            # Cannot write to $0 (e.g. installed in /usr/bin) – download to cwd.
+            _dest="./Arma3Helper.sh"
+            echo "Cannot write to '$0' (permission denied)."
+            echo "Downloading to: $_dest"
+            if curl -fo "$_dest" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
+                chmod +x "$_dest"
+                echo ""
+                echo "Update complete. Replace the installed script manually:"
+                echo "  sudo cp $_dest $0"
+                echo "Then run: ./Arma3Helper.sh debug"
+            else
+                echo ""
+                echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
+                exit 1
+            fi
+        fi
         ;;
 
     # -------------------------------------------------------------------------
@@ -1211,11 +1417,20 @@ case "$1" in
             _confirmation "Override it with a fresh template?"
         fi
         _checkinstall curl
-        curl -fo "$USERCONFIG/config" \
-            https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/config
-        echo ""
-        echo "Config file created at: $USERCONFIG/config"
-        echo "Edit it to set your Proton version and other preferences."
+        mkdir -p "$USERCONFIG"
+        _tmpconfig="$USERCONFIG/config.tmp"
+        if curl -fo "$_tmpconfig" \
+            https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/config; then
+            mv "$_tmpconfig" "$USERCONFIG/config"
+            echo ""
+            echo "Config file created at: $USERCONFIG/config"
+            echo "Edit it to set your Proton version and other preferences."
+        else
+            rm -f "$_tmpconfig"
+            echo ""
+            echo -e "\e[31mError\e[0m: Download failed. Config was NOT created."
+            exit 1
+        fi
         ;;
 
     # -------------------------------------------------------------------------
