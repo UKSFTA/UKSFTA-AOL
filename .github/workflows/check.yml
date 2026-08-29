@@ -14,8 +14,6 @@ jobs:
 
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
-        env:
-          SHELLCHECK_OPTS: -e SC1090 -e SC1091
 
   tests:
     name: Test suite
