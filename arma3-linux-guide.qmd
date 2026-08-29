@@ -699,33 +699,63 @@ ACRE2 attempts to install its TeamSpeak plugin automatically. When you launch Ar
 
 A pop-up window will appear on the first run confirming the installation. If the pop-up does not appear, or if TeamSpeak 3 cannot load the plugin, the manual installation described below may be attempted as a last resort.
 
-## Manual Plugin Installation (Unrecommended Last Resort)
+## Manual Plugin Installation (When Auto-Install Fails)
 
-**Warning:** Manual installation is not suggested and should only be attempted if the automatic process fails. Incorrectly placing files can cause plugin conflicts.
+**Warning:** Manual installation should only be attempted if the automatic process fails. Incorrectly placing files can cause plugin conflicts.
 
-Navigate to the ACRE2 mod folder in your Steam library:
-```
-<SteamLibrary>/steamapps/workshop/content/107410/751965892/plugin/
-```
+Run the repair command:
 
-Inside, you will find the required DLL files:
-```
-acre2_win32.dll
-acre2_win64.dll
+``` bash
+./Arma3Helper.sh acremod
 ```
 
-Copy these DLL files directly to the TeamSpeak 3 plugins directory inside the Wine prefix:
+The script locates the ACRE2 mod folder in your Steam library and copies the plugin DLLs into the prefix TeamSpeak install. The command is safe to re-run; it overwrites the plugin with the current mod version.
 
-```bash
-# Identify your compatdata path:
-./Arma3Helper.sh debug | grep "COMPAT_DATA_PATH"
+## Troubleshooting the Radio Connection
 
-# Copy the files (replace path with your real location):
-cp acre2_win32.dll acre2_win64.dll \
-    "$HOME/.steam/steam/steamapps/compatdata/107410/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins/"
+If ACRE2 or TFAR reports that it "cannot find the game instance", run the connection diagnostic:
+
+``` bash
+./Arma3Helper.sh acrecheck
 ```
 
-If your Arma 3 is on an external drive, use the path shown by the debug command rather than the example above.
+The check names the exact cause in order:
+
+1.  **Arma 3 is not running.** Start Arma 3 from Steam, wait for the main menu, then start TeamSpeak 3.
+2.  **The container path is not shared.** Arma and TeamSpeak must run on the same wineserver. Run `./Arma3Helper.sh launchopts`, then restart Arma 3 once.
+3.  **The radio mod is not in the loaded mod list.** Enable ACRE2 (and TFAR if your unit uses it) in your mod launcher.
+
+The script also lists loaded and installed mods for debugging:
+
+``` bash
+./Arma3Helper.sh listmods        # both lists
+./Arma3Helper.sh listmods loaded # only the current/last session
+```
+
+The loaded list is read from the running Arma 3 process, so it always reflects the current session. It flags ACRE2 and TFAR presence so you can see at a glance whether the radio mod is actually active.
+
+## Verifying the Full Radio Chain
+
+To verify everything at once, run:
+
+``` bash
+./Arma3Helper.sh verifyradio
+```
+
+The check works down a three-stage chain for each radio mod:
+
+1.  **Workshop mod downloaded** : the mod folder exists in a Steam library.
+2.  **Mod loaded in the game** : the mod is in the current session's loaded mod list.
+3.  **TeamSpeak plugin installed** : the plugin DLL is in the prefix TeamSpeak install.
+
+Each failing stage prints the exact fix. For example, a plugin disabled after a crash reports:
+
+```         
+[FAIL] TeamSpeak plugin disabled after a crash
+  Re-enable with:  ./Arma3Helper.sh tfarmod --enable
+```
+
+Run `verifyradio` after any change to confirm the whole chain is healthy before joining a mission.
 
 ## Mods on an External Drive
 
