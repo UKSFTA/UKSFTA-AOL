@@ -216,9 +216,9 @@ _setup_wizard() {
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             _check_dependencies
-            wrappercmd="$(_get_wrappercmd)"
+            _get_wrappercmd
             echo "Installing recommended DLLs..."
-            $wrappercmd d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29
+            "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29
             echo -e "\e[32mSetup complete.\e[0m"
         fi
     fi
@@ -627,6 +627,7 @@ _check_dependencies() {
 #   Determine which tool to use to install DLLs into the Wine prefix:
 #   winetricks or protontricks. protontricks is checked first as it handles
 #   the prefix environment more reliably when both are installed.
+#   Sets the global _WRAPPER array: _WRAPPER[0] = command, _WRAPPER[1..] = args.
 _get_wrappercmd() {
     local has_pt has_wt
     has_pt=$(command -v protontricks 2>/dev/null)
@@ -634,11 +635,10 @@ _get_wrappercmd() {
 
     if [[ -n "$has_pt" ]]; then
         # protontricks takes the Steam App ID as its first argument
-        echo "protontricks 107410"
+        _WRAPPER=(protontricks 107410)
     elif [[ -n "$has_wt" ]]; then
-        echo "winetricks"
+        _WRAPPER=(winetricks)
     else
-        echo ""
         echo -e "\e[31mError\e[0m: Neither winetricks nor protontricks is installed."
         echo "Install one of them and try again. Run './Arma3Helper.sh checkdeps' for details."
         exit 1
@@ -1291,8 +1291,8 @@ case "$1" in
     #     xact_x64       – Microsoft XACT audio engine (fixes audio issues)
     #     xaudio29       – XAudio2 library (fixes audio crackling)
         echo "Running winetricks inside Arma 3's Wine prefix..."
-        wrappercmd="$(_get_wrappercmd)"
-        echo "Using: $wrappercmd"
+        _get_wrappercmd
+        echo "Using: ${_WRAPPER[*]}"
         echo ""
         export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
 
@@ -1302,12 +1302,12 @@ case "$1" in
             echo ""
             echo "This may take several minutes. Do not interrupt."
             echo ""
-            $wrappercmd d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29
+            "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 xact_x64 xaudio29
             echo ""
             echo "Done. Run Arma 3 and check if audio/thermal-vision issues are resolved."
         else
-            echo "Running: $wrappercmd ${*:2}"
-            $wrappercmd "${@:2}"
+            echo "Running: ${_WRAPPER[*]} ${*:2}"
+            "${_WRAPPER[@]}" "${@:2}"
         fi
         ;;
 
@@ -1317,10 +1317,10 @@ case "$1" in
     # Open Wine's configuration GUI for Arma 3's prefix.
     # Useful for manually overriding DLLs or adjusting Windows version settings.
         echo "Opening winecfg for Arma 3's Wine prefix..."
-        wrappercmd="$(_get_wrappercmd)"
-        echo "Using: $wrappercmd"
+        _get_wrappercmd
+        echo "Using: ${_WRAPPER[*]}"
         export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
-        $wrappercmd winecfg
+        "${_WRAPPER[@]}" winecfg
         ;;
 
     # -------------------------------------------------------------------------
