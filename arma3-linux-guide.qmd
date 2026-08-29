@@ -99,7 +99,7 @@ ACRE2 depends on CBA_A3 (Community Base Addons for Arma 3). This mod must also b
 
 TFAR stands for Task Force Arrowhead Radio. Like ACRE2, it is an Arma 3 mod that simulates radio communication through TeamSpeak 3. TFAR is widely used by European Arma communities.
 
-TFAR also requires a TeamSpeak 3 plugin. This plugin must be installed manually inside the Wine prefix. The process is described in Chapter 9.
+TFAR also requires a TeamSpeak 3 plugin. Unlike ACRE2, TFAR does not install its plugin automatically. The Arma3Helper script installs it with a single command, described in Chapter 9.
 
 ACRE2 and TFAR serve the same purpose but are incompatible with each other. A community uses one or the other. Check with your unit before installing either.
 
@@ -577,24 +577,38 @@ The native Linux TeamSpeak 3 client cannot load the ACRE2 or TFAR Windows plugin
 
 ## Downloading TeamSpeak 3
 
-1. Download the TeamSpeak 3 Windows installer from the [official website](https://www.teamspeak.com/en/downloads/#ts3client).
+The script downloads and verifies the latest TeamSpeak 3 Windows installer for you. Run the install command with no arguments:
 
-2. Select the **Windows** version. Choose the **64-bit** installer. The filename will resemble `TeamSpeak3-Client-win64-3.x.x.exe`. Save it to a convenient location such as your Downloads folder.
+``` bash
+./Arma3Helper.sh install
+```
 
+The script:
 
-Do not use the Linux version. Do not use TeamSpeak 5. TeamSpeak 5 does not yet support the ACRE2 or TFAR plugins.
+1.  Queries TeamSpeak's official version endpoint for the latest Windows x64 client.
+2.  Downloads the installer.
+3.  Verifies its SHA-256 checksum against the published value.
+4.  Runs the installer silently with the **Install for All Users** option.
 
-## Running the Installer
-
-Run the installer through the Arma3Helper script:
+If the download server blocks the automated request, the script prints the manual download URL. In that case, download the **Windows 64-bit** installer from the [official website](https://www.teamspeak.com/en/downloads/#ts3client) and pass its path instead:
 
 ``` bash
 ./Arma3Helper.sh install ~/Downloads/TeamSpeak3-Client-win64-3.x.x.exe
 ```
 
-Replace the filename with the actual name of the file you downloaded.
+Do not use the Linux version. Do not use TeamSpeak 5. TeamSpeak 5 does not yet support the ACRE2 or TFAR plugins.
 
-The Windows installer will open inside a Wine window. You must follow three critical steps during installation. Failing to follow them exactly will cause the script to be unable to find TeamSpeak 3 afterwards.
+## Running the Installer
+
+The silent installer places TeamSpeak 3 at `C:\Program Files\TeamSpeak 3 Client\` inside the prefix, which is the location the script expects.
+
+For a manual install through the Wine window instead, run:
+
+``` bash
+./Arma3Helper.sh install /path/to/TeamSpeak3-Client-win64-3.x.x.exe
+```
+
+The installer opens in a Wine window. Follow these three critical steps. Failing to follow them exactly will cause the script to be unable to find TeamSpeak 3 afterwards.
 
 ### Critical Step 1 – Select 'Install for All Users'
 
@@ -749,7 +763,7 @@ ACRE2 settings are accessible in-game through the CBA Settings System. Press **E
 
 ## Overview
 
-TFAR simulates military radio communication through TeamSpeak 3. Unlike ACRE2, TFAR does not install its plugin automatically. You must copy the plugin files manually. This chapter explains the process step by step.
+TFAR simulates military radio communication through TeamSpeak 3. Unlike ACRE2, TFAR does not install its plugin automatically. The Arma3Helper script copies the plugin into the prefix TeamSpeak install with a single command.
 
 ## Required Mods
 
@@ -761,78 +775,25 @@ Some communities use an older version of TFAR (Workshop ID: 620019431). Check wi
 
 TFAR does not require CBA_A3 in all versions, but most TFAR-using communities run CBA_A3 alongside it. Confirm with your unit.
 
-## Locating the TFAR Plugin File
+## Installing the TFAR Plugin
 
-After subscribing to TFAR through the Steam Workshop, the mod files will be downloaded to:
+Subscribe to the TFAR mod in the Steam Workshop and let it download. The script finds the plugin inside the Workshop mod folder.
 
-```         
-<SteamLibrary>/steamapps/workshop/content/107410/894678801/
-```
-
-Inside the mod folder, navigate to the `teamspeak/` subdirectory:
+Run:
 
 ``` bash
-ls <SteamLibrary>/steamapps/workshop/content/107410/894678801/teamspeak/
+./Arma3Helper.sh tfarmod
 ```
 
-You will find a file named `task_force_radio.ts3plugin`. This is the plugin archive.
+The script:
 
-## Extracting the Plugin Files
+1.  Locates the TFAR plugin in the Workshop mod folder.
+2.  Extracts it if it is packaged as a `.ts3plugin` archive.
+3.  Copies the DLL files and the `radio-sounds` folder into the prefix TeamSpeak plugins directory.
 
-The `.ts3plugin` file is a standard ZIP archive with a renamed extension. Extract it using any archive tool.
+The command is safe to re-run. It overwrites the plugin files with the current mod version.
 
-``` bash
-# Using unzip (rename the extension first, or use -O to override):
-cp task_force_radio.ts3plugin task_force_radio.zip
-unzip task_force_radio.zip -d tfar_plugin
-
-# Or directly with many archive managers by right-clicking the file.
-```
-
-Inside the extracted archive, navigate to the `plugins/` folder. You will find the following files and directories:
-
-```         
-plugins/
-├── TFAR_win32.dll
-├── TFAR_win64.dll
-└── radio-sounds/
-└── (audio files)
-```
-
-You need to copy all three items – both DLL files and the `radio-sounds` folder – to the TeamSpeak 3 plugins directory.
-
-## Copying Plugin Files to the TeamSpeak 3 Directory
-
-First, determine the exact path to Arma 3's compatdata:
-
-``` bash
-./Arma3Helper.sh debug | grep "COMPAT_DATA_PATH"
-```
-
-The TeamSpeak 3 plugins directory is located at:
-
-```         
-<COMPAT_DATA_PATH>/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins/
-```
-
-Copy the plugin files. Replace `<COMPAT_DATA_PATH>` with the actual path shown by the debug command:
-
-``` bash
-# Example path – adjust to match your system:
-PLUGINS_DIR="$HOME/.steam/steam/steamapps/compatdata/107410/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
-
-# Copy the DLL files and the audio folder:
-cp TFAR_win32.dll TFAR_win64.dll "$PLUGINS_DIR/"
-cp -r radio-sounds/ "$PLUGINS_DIR/"
-```
-
-Verify the copy was successful:
-
-``` bash
-ls "$PLUGINS_DIR/"
-# Expected output should include:
-# TFAR_win32.dll  TFAR_win64.dll  radio-sounds/
-```
+If the script reports "Could not find the TFAR plugin", the mod is not installed or not downloaded. Subscribe to it in Steam, let the download finish, then run the command again.
 
 ## Enabling the TFAR Plugin
 
@@ -846,12 +807,27 @@ In TeamSpeak 3, go to **Tools** → **Options** → **Addons** (or **Plugins**).
 
 **Important:** Plugins are typically enabled by default. If you see the plugin is already enabled, do **not** click 'Enable', as this will toggle it off. If the plugin is not working, verify it is truly enabled in this menu.
 
-If the plugin does not appear, check that the files were copied to the correct directory. The plugins folder path is case-sensitive on Linux. Make sure `Program Files` is capitalised correctly.
+## Plugin Disabled After a Crash
 
+If the TFAR plugin ever crashes TeamSpeak 3, TeamSpeak renames its DLL to `TFAR_win64.dll.disabled` so it is not loaded again. This is TeamSpeak's crash protection, not a TFAR fault.
+
+Re-enable the plugin with:
+
+``` bash
+./Arma3Helper.sh tfarmod --enable
+```
+
+The script also reports a disabled plugin during `checkdeps`, so you will see the problem before it bites.
 
 ## Verifying TFAR
 
-Follow this sequence to verify TFAR is working:
+Run the dependency check and confirm both radio plugins are present:
+
+``` bash
+./Arma3Helper.sh checkdeps
+```
+
+The output shows the ACRE2 and TFAR plugin status. Then verify in game:
 
 1.  Start TeamSpeak 3 using `./Arma3Helper.sh` and connect to a server.
 2.  Confirm the TFAR plugin shows as active in TeamSpeak.

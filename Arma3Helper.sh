@@ -754,6 +754,11 @@ _check_dependencies() {
         echo "  Install it in Steam: Library -> Tools -> Proton BattlEye Runtime"
     fi
 
+    # ----------------------------------------------------------------
+    # Check ACRE2 / TFAR radio plugins in the TeamSpeak install
+    # ----------------------------------------------------------------
+    _check_radio_plugins
+
     echo ""
     echo "================================================================"
     echo ""
@@ -770,6 +775,198 @@ _check_battleye_runtime() {
         fi
     done < <(_find_steam_libraries)
     return 1
+}
+
+# _check_radio_plugins
+#   Verify the ACRE2 and TFAR plugins are present in the TeamSpeak plugins
+#   directory inside the Arma prefix.
+#
+#   ACRE2 installs its own plugin DLLs when the mod loads, so a missing ACRE2
+#   plugin usually means Arma has not been launched since the mod was added.
+#   TFAR does not auto-install; use 'tfarmod' to copy its plugin.
+#
+#   A DLL with a '.disabled' suffix is TeamSpeak's own crash protection: the
+#   plugin crashed the client once and TeamSpeak renamed it so it is not
+#   loaded again. The plugin is still installed, but inactive.
+_check_radio_plugins() {
+    echo ""
+    echo "Checking ACRE2 / TFAR radio plugins..."
+    echo "  (These plugins let TeamSpeak exchange radio data with Arma 3.)"
+    echo ""
+
+    # Determine the prefix plugins directory. Prefer the All-Users install
+    # location, which is where the script installs TeamSpeak.
+    local plugins_dir="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+    if [[ ! -d "$plugins_dir" ]]; then
+        echo -e "  \e[33m[MISSING]\e[0m TeamSpeak plugins folder not found."
+        echo "    TeamSpeak 3 is not installed, or was installed for"
+        echo "    the current user only. Run:  ./Arma3Helper.sh install"
+        return 1
+    fi
+
+    local acre2_found=0
+    local tfar_found=0
+    local disabled_found=""
+
+    # shellcheck disable=SC2012
+    for f in "$plugins_dir"/*.dll; do
+        case "$(basename "$f")" in
+            acre2_*.dll)
+                acre2_found=1
+                ;;
+            TFAR_*.dll)
+                tfar_found=1
+                ;;
+        esac
+    done
+    # shellcheck disable=SC2012
+    for f in "$plugins_dir"/*.disabled "$plugins_dir"/../config/plugins/*.disabled; do
+        case "$(basename "$f")" in
+            TFAR_*.dll.disabled|acre2_*.dll.disabled)
+                disabled_found="${disabled_found:+$disabled_found, }$(basename "$f")"
+                ;;
+        esac
+    done
+
+    if [[ "$acre2_found" == 1 ]]; then
+        echo -e "  \e[32m[OK]\e[0m     ACRE2 plugin present"
+    else
+        echo -e "  \e[33m[MISSING]\e[0m ACRE2 plugin"
+        echo "    Launch Arma 3 once with the ACRE2 mod active. It"
+        echo "    installs its plugin automatically when the mod loads."
+    fi
+
+    if [[ "$tfar_found" == 1 ]]; then
+        echo -e "  \e[32m[OK]\e[0m     TFAR plugin present"
+    else
+        echo -e "  \e[33m[MISSING]\e[0m TFAR plugin"
+        echo "    TFAR does not install its plugin automatically."
+        echo "    Install it with:  ./Arma3Helper.sh tfarmod"
+    fi
+
+    if [[ -n "$disabled_found" ]]; then
+        echo -e "  \e[33m[ISSUE]\e[0m  Plugin disabled after a crash: $disabled_found"
+        echo "    TeamSpeak disabled it because it crashed the client once."
+        echo "    Re-enable with:  ./Arma3Helper.sh tfarmod --enable"
+    fi
+
+    return 0
+}
+
+# _find_tfar_plugin_source
+#   Locate the TFAR plugin DLLs on the host. TFAR ships its plugin in the
+#   Workshop mod folder (task_force_radio.ts3_plugin, a zip archive) or in
+#   a plain 'TeamSpeak 3 Client' folder. Sets _TFAR_SRC_DIR when found.
+_find_tfar_plugin_source() {
+    local lib_path
+    while IFS= read -r lib_path; do
+        [[ -z "$lib_path" ]] && continue
+        # Workshop mod folder: steamapps/workshop/content/107410/<tfar_id>
+        local ws
+        while IFS= read -r ws; do
+            [[ -z "$ws" ]] && continue
+            local plugin_zip="$ws/task_force_radio.ts3_plugin"
+            local plugin_dir="$ws/TeamSpeak 3 Client"
+            if [[ -f "$plugin_zip" ]]; then
+                _TFAR_SRC_ZIP="$plugin_zip"
+                _TFAR_SRC_DIR=""
+                return 0
+            elif [[ -d "$plugin_dir" ]]; then
+                _TFAR_SRC_DIR="$plugin_dir"
+                _TFAR_SRC_ZIP=""
+                return 0
+            fi
+        done < <(find "$lib_path/steamapps/workshop/content/107410" -maxdepth 1 -type d 2>/dev/null)
+    done < <(_find_steam_libraries)
+    return 1
+}
+
+# _install_tfar_plugin
+#   Copy the TFAR plugin into the prefix TeamSpeak plugins folder.
+#   Also re-enables any plugin TeamSpeak disabled after a crash (the
+#   '.disabled' crash-protection suffix).
+_install_tfar_plugin() {
+    local plugins_dir="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+    if [[ ! -d "$plugins_dir" ]]; then
+        echo -e "\e[31mError\e[0m: TeamSpeak plugins folder not found:"
+        echo "  $plugins_dir"
+        echo "Install TeamSpeak first:  ./Arma3Helper.sh install"
+        return 1
+    fi
+
+    _TFAR_SRC_ZIP=""
+    _TFAR_SRC_DIR=""
+    if ! _find_tfar_plugin_source; then
+        echo -e "\e[31mError\e[0m: Could not find the TFAR plugin."
+        echo "Install the Task Force Radio mod from the Steam Workshop first."
+        return 1
+    fi
+
+    local tmpdir=""
+    if [[ -n "$_TFAR_SRC_ZIP" ]]; then
+        # .ts3plugin is a zip archive with a plugins/ subfolder.
+        echo "Extracting TFAR plugin from Workshop package..."
+        _checkinstall unzip || return 1
+        tmpdir="$(mktemp -d)"
+        if ! unzip -oq "$_TFAR_SRC_ZIP" -d "$tmpdir" 2>/dev/null; then
+            echo -e "\e[31mError\e[0m: Could not extract the TFAR plugin package."
+            rm -rf "$tmpdir"
+            return 1
+        fi
+        _TFAR_SRC_DIR="$tmpdir"
+    fi
+
+    local copied=0
+    # shellcheck disable=SC2012
+    for f in "$_TFAR_SRC_DIR"/plugins/TFAR_*.dll "$_TFAR_SRC_DIR"/plugins/task_force_radio*.dll; do
+        if [[ -f "$f" ]]; then
+            cp -f "$f" "$plugins_dir/"
+            echo "  Copied: $(basename "$f")"
+            copied=1
+        fi
+    done
+    [[ -n "$tmpdir" ]] && rm -rf "$tmpdir"
+
+    if [[ "$copied" == 0 ]]; then
+        echo -e "\e[31mError\e[0m: No TFAR plugin DLL found in: $_TFAR_SRC_ZIP$_TFAR_SRC_DIR"
+        return 1
+    fi
+
+    echo -e "\e[32mTFAR plugin installed.\e[0m"
+    echo "Restart TeamSpeak 3 to load it."
+    return 0
+}
+
+# _enable_tfar_plugin
+#   Re-enable TFAR plugins that TeamSpeak disabled after a crash
+#   (the '.disabled' suffix). Rename them back to .dll.
+_enable_tfar_plugin() {
+    local plugins_dir="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
+    if [[ ! -d "$plugins_dir" ]]; then
+        echo -e "\e[31mError\e[0m: TeamSpeak plugins folder not found:"
+        echo "  $plugins_dir"
+        return 1
+    fi
+
+    local found=0
+    local cfg_plugins="$plugins_dir/../config/plugins"
+    # shellcheck disable=SC2012
+    for f in "$plugins_dir"/TFAR_*.dll.disabled "$plugins_dir"/acre2_*.dll.disabled \
+             "$cfg_plugins"/TFAR_*.dll.disabled "$cfg_plugins"/acre2_*.dll.disabled; do
+        if [[ -f "$f" ]]; then
+            local target="${f%.disabled}"
+            mv -f "$f" "$target"
+            echo "  Re-enabled: $(basename "$target")"
+            found=1
+        fi
+    done
+
+    if [[ "$found" == 1 ]]; then
+        echo -e "\e[32mPlugin re-enabled. Restart TeamSpeak 3 to load it.\e[0m"
+    else
+        echo "No disabled radio plugins found."
+    fi
+    return 0
 }
 
 # _get_wrappercmd
@@ -792,6 +989,61 @@ _get_wrappercmd() {
         echo "Install one of them and try again. Run './Arma3Helper.sh checkdeps' for details."
         return 1
     fi
+}
+
+# _download_ts3
+#   Download the latest TeamSpeak 3 Windows x64 installer and verify it.
+#   Discovery + checksum come from the official version endpoint that winget
+#   and the downloads page use. Returns the installer path in _TS3_INSTALLER.
+#   Falls back to a manual-download message when the CDN challenge-blocks us.
+_download_ts3() {
+    _checkinstall curl || return 1
+    _checkinstall python3 || return 1
+
+    echo ""
+    echo "Fetching latest TeamSpeak 3 version information..."
+    local meta
+    meta=$(curl -fs --max-time 10 "https://www.teamspeak.com/versions/client.json" 2>/dev/null) || {
+        echo -e "\e[31mError\e[0m: Could not reach the TeamSpeak version server."
+        return 1
+    }
+
+    local ver checksum url
+    ver=$(echo "$meta" | python3 -c "import json,sys; print(json.load(sys.stdin)['windows']['x86_64']['version'])" 2>/dev/null)
+    checksum=$(echo "$meta" | python3 -c "import json,sys; print(json.load(sys.stdin)['windows']['x86_64']['checksum'])" 2>/dev/null)
+    url=$(echo "$meta" | python3 -c "import json,sys; print(json.load(sys.stdin)['windows']['x86_64']['mirrors']['teamspeak.com'])" 2>/dev/null)
+
+    if [[ -z "$ver" || -z "$checksum" || -z "$url" ]]; then
+        echo -e "\e[31mError\e[0m: Could not parse the TeamSpeak version information."
+        echo "Download the Windows 64-bit installer manually from:"
+        echo "  https://www.teamspeak.com/en/downloads/"
+        return 1
+    fi
+
+    local dest="$USERCONFIG/TeamSpeak3-Client-win64-$ver.exe"
+    echo "Latest version: $ver"
+    echo "Downloading from: $url"
+    echo ""
+    if ! curl -fL --max-time 300 -o "$dest" "$url"; then
+        echo -e "\e[31mError\e[0m: Download failed."
+        echo "The TeamSpeak download server may block automated downloads."
+        echo "Download the Windows 64-bit installer manually from:"
+        echo "  https://www.teamspeak.com/en/downloads/"
+        echo "Then run:  ./Arma3Helper.sh install /path/to/TeamSpeak3-Client-win64-$ver.exe"
+        rm -f "$dest"
+        return 1
+    fi
+
+    echo ""
+    echo "Verifying download..."
+    if ! echo "$checksum  $dest" | sha256sum -c - >/dev/null 2>&1; then
+        echo -e "\e[31mError\e[0m: Checksum mismatch. Download may be corrupt."
+        rm -f "$dest"
+        return 1
+    fi
+    echo -e "\e[32mChecksum verified.\e[0m"
+    _TS3_INSTALLER="$dest"
+    return 0
 }
 
 ###############################################################################
@@ -1699,72 +1951,69 @@ case "$1" in
     #
     # CRITICAL INSTALLATION STEPS:
     #
-    #   1. Download the TeamSpeak 3 Windows installer (64-bit version).
-    #      Get it from: https://www.teamspeak.com/en/downloads/
-    #      Choose 'Windows 64-bit' – do NOT use the Linux version.
-    #
-    #   2. Run this command:
+    #   1. Run this command:
+    #      ./Arma3Helper.sh install
+    #      It downloads the latest Windows 64-bit installer, verifies it, and
+    #      installs it silently. You can also pass an installer path you
+    #      downloaded yourself:
     #      ./Arma3Helper.sh install /path/to/TeamSpeak3-Client-win64-x.x.x.exe
     #
-    #   3. When the installer opens, you MUST:
-    #      a. Select 'Install for All Users' (not 'Install for current user only')
-    #         WHY: 'Install for All Users' places TS3 in
-    #              C:\Program Files\TeamSpeak 3 Client\
-    #              which is where this script expects to find it.
-    #              'Install for current user only' places it in AppData\Local,
-    #              which the script cannot find automatically.
+    #   2. The silent install uses 'Install for All Users', which places TS3 in
+    #      C:\Program Files\TeamSpeak 3 Client\ - where this script expects it.
+    #      (An installer launched manually must select 'Install for All Users'
+    #      and keep the default path.)
     #
-    #      b. Accept the default installation path WITHOUT changing it.
-    #         The path should read: C:\Program Files\TeamSpeak 3 Client
-    #         Do not alter this path.
-    #
-    #   4. After installation, launch TS3 with './Arma3Helper.sh' and then:
-    #      - Go to Tools > Options > Addons
-    #      - Disable 'Gamepad and Joystick Hotkey Support'
-    #        WHY: This plugin crashes TS3 when a gamepad/controller is present.
+    #   3. (automatic) The crashing Gamepad and Joystick plugin is deleted at
+    #      every launch.
     # -------------------------------------------------------------------------
         echo ""
         echo "============================================================"
         echo " TeamSpeak 3 Installer"
         echo "============================================================"
         echo ""
-        echo " CRITICAL: Follow these steps in the installer exactly:"
-        echo ""
-        echo "  Step 1 – Select:"
-        echo -e "             \e[33mInstall for All Users\e[0m"
-        echo "           (NOT 'Install for current user only')"
-        echo ""
-        echo "  Step 2 – Accept the default path WITHOUT changing it:"
-        echo -e "             \e[33mC:\\Program Files\\TeamSpeak 3 Client\e[0m"
-        echo ""
-        echo "  Step 3 – Complete the installation."
-        echo ""
-        echo "  Step 4 – (automatic) The crashing Gamepad and Joystick plugin"
-        echo "           is deleted automatically at every launch."
-        echo ""
-        echo "  If the installer hangs at 'fsync: up and running' with"
-        echo "  Proton Experimental, use a stable Proton version instead."
-        echo ""
-        echo "============================================================"
-        echo ""
-        sleep 3
 
-        if [[ -z "$2" ]]; then
-            echo "Error: No installer path was provided."
-            echo ""
-            echo "Usage:  ./Arma3Helper.sh install /path/to/TeamSpeak3-Client-win64-x.x.x.exe"
-            echo ""
-            echo "Download from: https://www.teamspeak.com/en/downloads/"
-            echo "(Choose the Windows 64-bit version)"
+        installer_path="$2"
+        if [[ -z "$installer_path" ]]; then
+            if _download_ts3; then
+                installer_path="$_TS3_INSTALLER"
+            else
+                exit 1
+            fi
+        fi
+
+        if [[ ! -f "$installer_path" ]]; then
+            echo "Error: File not found: $installer_path"
             exit 1
         fi
 
-        if [[ ! -f "$2" ]]; then
-            echo "Error: File not found: $2"
+        echo ""
+        echo "Installing TeamSpeak 3 into Arma's Wine prefix..."
+        echo "This installs silently with 'Install for All Users'."
+        echo "The Gamepad and Joystick plugin is deleted automatically at"
+        echo "every launch."
+        echo ""
+
+        if "$PROTONEXEC" run "$installer_path" /S /ALLUSERS; then
+            echo ""
+            echo "Installer finished."
+        else
+            echo ""
+            echo -e "\e[33mWarning\e[0m: The silent installer reported an error."
+            echo "Run it manually to see the installer dialog:"
+            echo "  $installer_path"
             exit 1
         fi
 
-        "$PROTONEXEC" run "$2"
+        # Verify the install landed where the script expects it.
+        _ts3exe="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe"
+        if [[ -x "$_ts3exe" ]]; then
+            echo -e "\e[32mTeamSpeak 3 installed successfully.\e[0m"
+            echo "Launch it with:  ./Arma3Helper.sh"
+        else
+            echo -e "\e[33mNote\e[0m: ts3client_win64.exe was not found at the expected path yet."
+            echo "Launch Arma 3 and then run './Arma3Helper.sh' - the script"
+            echo "checks the full prefix for the executable."
+        fi
         ;;
 
     # -------------------------------------------------------------------------
@@ -2059,6 +2308,22 @@ case "$1" in
     ;;
 
     # -------------------------------------------------------------------------
+    "tfarmod")
+    # -------------------------------------------------------------------------
+    # Install the Task Force Radio plugin into the prefix TeamSpeak install.
+    # TFAR does not auto-install its plugin (unlike ACRE2). The plugin DLLs
+    # are found in the Workshop mod folder and copied into the prefix.
+    #
+    #   tfarmod        – install the TFAR plugin (also re-enables if disabled)
+    #   tfarmod --enable – re-enable a plugin TeamSpeak disabled after a crash
+    if [[ "$2" == "--enable" ]]; then
+        _enable_tfar_plugin
+    else
+        _install_tfar_plugin
+    fi
+    ;;
+
+    # -------------------------------------------------------------------------
     "createconfig")
     # -------------------------------------------------------------------------
     # Create an external config file at ~/.config/arma3helper/config.
@@ -2111,10 +2376,10 @@ case "$1" in
         echo "     Also makes sure Arma's Steam launch options expose the host"
         echo "     paths ACRE2/TFAR need (same as 'launchopts')."
         echo ""
-        echo " ./Arma3Helper.sh install <path/to/TS3-installer.exe>"
+        echo " ./Arma3Helper.sh install [path/to/TS3-installer.exe]"
         echo "     Install TeamSpeak 3 (Windows version) into Arma's prefix."
-        echo "     During install: select 'Install for All Users' and accept"
-        echo "     the default path (C:\\Program Files\\TeamSpeak 3 Client)."
+        echo "     With no path, downloads and verifies the latest installer"
+        echo "     automatically. Installs silently for All Users."
         echo ""
         echo " ./Arma3Helper.sh winetricks Arma"
         echo "     Install recommended DLLs for Arma 3. Run this once before"
@@ -2128,7 +2393,15 @@ case "$1" in
         echo ""
         echo " ./Arma3Helper.sh checkdeps"
         echo "     Check all required system packages (GStreamer, winetricks,"
-        echo "     curl, Vulkan tools). Run this to diagnose missing software."
+        echo "     curl, Vulkan tools) plus the BattlEye runtime, the noexec"
+        echo "     mount check, and the ACRE2/TFAR radio plugins."
+        echo ""
+        echo " ./Arma3Helper.sh tfarmod"
+        echo "     Install the Task Force Radio plugin into the prefix"
+        echo "     TeamSpeak install. TFAR does not auto-install its plugin."
+        echo ""
+        echo " ./Arma3Helper.sh tfarmod --enable"
+        echo "     Re-enable a radio plugin TeamSpeak disabled after a crash."
         echo ""
         echo " ./Arma3Helper.sh listproton"
         echo "     List all Proton versions installed on this system,"

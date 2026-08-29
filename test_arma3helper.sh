@@ -389,6 +389,110 @@ rm -rf "$TMPDIR_TEST/gamepad-test"
 echo ""
 
 # ===========================================================================
+echo "── 8b. Radio plugin verification and TFAR install ──"
+# ===========================================================================
+# checkdeps must report the ACRE2/TFAR plugins, tfarmod must copy the TFAR
+# plugin from the Workshop mod folder, and --enable must re-enable plugins
+# that TeamSpeak disabled after a crash (.disabled suffix).
+
+# Source the real functions from the script without running the script body.
+# The evaled functions call _find_steam_libraries, so source that too and
+# build a mock Steam layout the real functions can discover.
+_plugin_fn="$(sed -n '/^_check_radio_plugins() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_find_tfar_plugin_source() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_install_tfar_plugin() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_enable_tfar_plugin() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_find_steam_root() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_find_steam_libraries() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+
+# Build a mock Steam install the real discovery functions find:
+#   $MOCK_HOME/.steam/steam/steamapps          -> makes _find_steam_root match
+#   $MOCK_HOME/.steam/steam/config/libraryfolders.vdf -> points at the library
+MOCK_HOME="$TMPDIR_TEST/radio-home"
+MOCK_LIB="$TMPDIR_TEST/radio-lib"
+mkdir -p "$MOCK_HOME/.steam/steam/steamapps"
+mkdir -p "$MOCK_HOME/.steam/steam/config"
+cat > "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
+"libraryfolders"
+{
+	"0"
+	{
+		"path"		"__MOCK_LIB__"
+	}
+}
+VDF
+sed -i "s|__MOCK_LIB__|$MOCK_LIB|" "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf"
+mkdir -p "$MOCK_LIB/steamapps/workshop/content/107410/623475154/TeamSpeak 3 Client/plugins"
+
+export COMPAT_DATA_PATH="$MOCK_LIB"
+TS3_ROOT="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client"
+mkdir -p "$TS3_ROOT/plugins"
+mkdir -p "$TS3_ROOT/config/plugins"
+
+# Case A: empty plugins -> both missing
+if _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin" && \
+   ! _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin present"; then
+    pass "checkdeps reports both plugins missing when absent"
+else
+    fail "checkdeps empty-plugins status wrong"
+fi
+
+# Case B: ACRE2 present, TFAR missing
+touch "$TS3_ROOT/plugins/acre2_win64.dll"
+if _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin present" && \
+   ! _check_radio_plugins 2>&1 | grep -q "TFAR plugin present"; then
+    pass "checkdeps reports ACRE2 present, TFAR missing"
+else
+    fail "checkdeps plugin status wrong (ACRE2/TFAR)"
+fi
+
+# Case C: disabled plugin detected
+touch "$TS3_ROOT/config/plugins/TFAR_win64.dll.disabled"
+if _check_radio_plugins 2>&1 | grep -q "Plugin disabled after a crash"; then
+    pass "checkdeps reports disabled TFAR plugin"
+else
+    fail "checkdeps did not report disabled TFAR plugin"
+fi
+
+# Case D: --enable renames .disabled back to .dll
+if _enable_tfar_plugin 2>&1 | grep -q "Re-enabled: TFAR_win64.dll" && \
+   [[ -f "$TS3_ROOT/config/plugins/TFAR_win64.dll" && ! -e "$TS3_ROOT/config/plugins/TFAR_win64.dll.disabled" ]]; then
+    pass "tfarmod --enable re-enables disabled plugin"
+else
+    fail "tfarmod --enable failed to re-enable plugin"
+fi
+
+# Case E: tfarmod install from Workshop mod folder.
+# HOME must point at the mock so _find_steam_root finds the fake Steam.
+WS_MOD="$MOCK_LIB/steamapps/workshop/content/107410/623475154/TeamSpeak 3 Client/plugins"
+touch "$WS_MOD/TFAR_win64.dll"
+if ( HOME="$MOCK_HOME" _install_tfar_plugin ) 2>&1 | grep -q "TFAR plugin installed" && \
+   [[ -f "$TS3_ROOT/plugins/TFAR_win64.dll" ]]; then
+    pass "tfarmod copies TFAR plugin from Workshop mod"
+else
+    fail "tfarmod failed to copy TFAR plugin"
+fi
+
+# Case F: tfarmod with no mod installed reports a clear error.
+# Keep the TS3 plugins folder present but remove the Workshop mod source.
+rm -rf "$MOCK_LIB/steamapps"
+_cf_out="$( HOME="$MOCK_HOME" _install_tfar_plugin 2>&1 )"
+if echo "$_cf_out" | grep -q "Could not find the TFAR plugin"; then
+    pass "tfarmod reports clear error when mod missing"
+else
+    fail "tfarmod missing-mod error not shown (got: $_cf_out)"
+fi
+rm -rf "$TMPDIR_TEST/radio-lib" "$TMPDIR_TEST/radio-home"
+
+echo ""
+
+# ===========================================================================
 echo "── 9. Prefix reset backup coverage ──"
 # ===========================================================================
 # The full reset must back up BOTH profile folders (default + named),
