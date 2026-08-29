@@ -10,8 +10,9 @@
 #   3. Fallback version comparison (sort -V)
 #   4. _find_steam_libraries VDF parsing
 #   5. Symlink handling
-#   6. End-to-end auto-detect against real system
-#   7. Edge cases (empty prefix, missing files, weird names)
+#   6. Gamepad plugin removal
+#   7. End-to-end auto-detect against real system
+#   8. Edge cases (empty prefix, missing files, weird names)
 
 set -uo pipefail
 
@@ -348,7 +349,47 @@ assert_eq "$link_name" "Proton-Symlinked" "basename returns symlink name, not ta
 echo ""
 
 # ===========================================================================
-echo "── 8. End-to-end: real system auto-detect ──"
+echo "── 8. Gamepad plugin removal ──"
+# ===========================================================================
+# The script deletes the crashing Gamepad and Joystick Hotkey Support plugin
+# from both possible install locations before every launch.
+MOCK_PFX="$TMPDIR_TEST/gamepad-test/pfx/drive_c"
+mkdir -p "$MOCK_PFX/users/steamuser/AppData/Roaming/TS3Client/plugins"
+mkdir -p "$MOCK_PFX/Program Files/TeamSpeak 3 Client/plugins"
+touch "$MOCK_PFX/users/steamuser/AppData/Roaming/TS3Client/plugins/gamepad_joystick_win64.dll"
+mkdir -p "$MOCK_PFX/Program Files/TeamSpeak 3 Client/plugins/gamepad_joystick"
+touch "$MOCK_PFX/Program Files/TeamSpeak 3 Client/plugins/gamepad_joystick/plugin_win64.dll"
+
+# Source the real function from the script without running the script body.
+# The function is defined between these markers in Arma3Helper.sh.
+_script_fn="$(sed -n '/^_remove_gamepad_plugin() {/,/^}/p' "$HELPER")"
+eval "$_script_fn"
+
+# shellcheck disable=SC2034  # consumed by the sourced function via $COMPAT_DATA_PATH
+COMPAT_DATA_PATH="$TMPDIR_TEST/gamepad-test"
+if _remove_gamepad_plugin; then
+    pass "Gamepad plugin removed from both locations"
+else
+    fail "Gamepad plugin removal reported no removals"
+fi
+if [[ ! -e "$MOCK_PFX/users/steamuser/AppData/Roaming/TS3Client/plugins/gamepad_joystick_win64.dll" && \
+      ! -e "$MOCK_PFX/Program Files/TeamSpeak 3 Client/plugins/gamepad_joystick" ]]; then
+    pass "Gamepad plugin files no longer exist"
+else
+    fail "Gamepad plugin files still exist after removal"
+fi
+# Second run is a no-op (idempotent)
+if _remove_gamepad_plugin && [[ ! -e "$MOCK_PFX/users/steamuser/AppData/Roaming/TS3Client/plugins/gamepad_joystick_win64.dll" ]]; then
+    pass "Gamepad plugin removal is idempotent"
+else
+    fail "Gamepad plugin removal not idempotent"
+fi
+rm -rf "$TMPDIR_TEST/gamepad-test"
+
+echo ""
+
+# ===========================================================================
+echo "── 9. End-to-end: real system auto-detect ──"
 # ===========================================================================
 REAL_PREFIX="/ext/SteamLibrary/steamapps/compatdata/107410/version"
 if [[ -f "$REAL_PREFIX" ]]; then
@@ -384,7 +425,7 @@ fi
 echo ""
 
 # ===========================================================================
-echo "── 9. Dry-run: script runs without errors ──"
+echo "── 10. Dry-run: script runs without errors ──"
 # ===========================================================================
 if [[ -x "$HELPER" ]]; then
     # Dry-run with a non-existent command to test arg parsing
@@ -401,7 +442,7 @@ fi
 echo ""
 
 # ===========================================================================
-echo "── 10. Version file path: reads \$COMPAT_DATA_PATH/version ──"
+echo "── 11. Version file path: reads \$COMPAT_DATA_PATH/version ──"
 # ===========================================================================
 # Verify the script reads the correct version file path
 _script_version_path=$(grep -n '_prefix_version_file=\|version_file=' "$HELPER" | head -2)
@@ -413,7 +454,7 @@ else
 fi
 
 # ===========================================================================
-echo "── 11. Proton guard: rejects non-executable paths ──"
+echo "── 12. Proton guard: rejects non-executable paths ──"
 # ===========================================================================
 # Test that the script errors cleanly when custom proton doesn't exist
 MOCK_HOME_11=$(mktemp -d)
@@ -456,7 +497,7 @@ fi
 rm -rf "$MOCK_HOME_11b"
 
 # ===========================================================================
-echo "── 12. Auto-detect skipped when PROTON_CUSTOM_VERSION set ──"
+echo "── 13. Auto-detect skipped when PROTON_CUSTOM_VERSION set ──"
 # ===========================================================================
 # When PROTON_CUSTOM_VERSION is set, auto-detect should not run and
 # PROTON_OFFICIAL_VERSION should NOT be set to a fallback value
