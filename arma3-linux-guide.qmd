@@ -1,7 +1,9 @@
 ---
 title: "Arma 3 on Linux"
 subtitle: "A Full Installation and Configuration Guide – Including ACRE2 and TFAR"
-author: "UKSF Taskforce Alpha Development Team"
+author:
+  - name: "UKSF Taskforce Alpha Development Team"
+lang: en-GB
 subject: "This guide explains how to install and configure Arma 3 on a Linux operating system, covering the full process from first-time setup to advanced radio communication using ACRE2 and TFAR."
 date: 2026-08-29
 keywords: [Arma 3, Linux, Proton, ACRE2, TFAR, Installation]
@@ -25,6 +27,9 @@ format:
     code-copy: true
     smooth-scroll: true
     standalone: true
+    axe:
+      enabled: true
+      standard: wcag21aa
   pdf:
     pdf-engine: xelatex
     template: templates/eisvogel.latex
@@ -81,7 +86,7 @@ Each game running under Proton has its own isolated Windows environment. This is
 
 Arma 3's Wine prefix is stored at:
 
-```         
+```
 <SteamLibrary>/steamapps/compatdata/107410/
 ```
 
@@ -141,14 +146,14 @@ sudo nano /etc/pacman.conf
 
 Find the following two lines. They will be commented out with a `#` character at the start:
 
-```         
+```
 #[multilib]
 #Include = /etc/pacman.d/mirrorlist
 ```
 
 Remove the `#` from both lines so they read:
 
-```         
+```
 [multilib]
 Include = /etc/pacman.d/mirrorlist
 ```
@@ -180,13 +185,13 @@ Arma 3 uses GStreamer to handle audio. Proton requires both the 64-bit and 32-bi
 ::: {.panel-tabset}
 
 ### Arch Linux
-```bash
+``` bash
 sudo pacman -S gstreamer gst-plugins-base gst-plugins-good \
 lib32-gstreamer lib32-gst-plugins-base lib32-gst-plugins-good
 ```
 
 ### Debian/Ubuntu
-```bash
+``` bash
 sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-base \
 gstreamer1.0-plugins-good \
 gstreamer1.0-tools:i386 gstreamer1.0-plugins-base:i386 \
@@ -194,7 +199,7 @@ gstreamer1.0-plugins-good:i386
 ```
 
 ### Fedora
-```bash
+``` bash
 sudo dnf install gstreamer1 gstreamer1-plugins-base \
 gstreamer1-plugins-good \
 gstreamer1.i686 gstreamer1-plugins-base.i686 \
@@ -205,13 +210,13 @@ gstreamer1-plugins-good.i686
 
 ::: {.content-visible when-format="pdf"}
 **Arch Linux**
-```bash
+``` bash
 sudo pacman -S gstreamer gst-plugins-base gst-plugins-good \
 lib32-gstreamer lib32-gst-plugins-base lib32-gst-plugins-good
 ```
 
 **Debian/Ubuntu**
-```bash
+``` bash
 sudo apt install gstreamer1.0-tools gstreamer1.0-plugins-base \
 gstreamer1.0-plugins-good \
 gstreamer1.0-tools:i386 gstreamer1.0-plugins-base:i386 \
@@ -219,7 +224,7 @@ gstreamer1.0-plugins-good:i386
 ```
 
 **Fedora**
-```bash
+``` bash
 sudo dnf install gstreamer1 gstreamer1-plugins-base \
 gstreamer1-plugins-good \
 gstreamer1.i686 gstreamer1-plugins-base.i686 \
@@ -233,7 +238,7 @@ If Arma 3 crashes on startup, it is often due to outdated GPU drivers or missing
 - **Update GPU Drivers:** Keep your system's graphics drivers up to date. For AMD and Intel users, this means keeping your **Mesa** drivers current. NVIDIA users should install the latest proprietary drivers.
 - **Install Vulkan Libraries:** Install the Vulkan support packages your distribution needs (for example `vulkan-tools`, `mesa-vulkan-drivers`).
 - **Clear Shader Cache:** If the game crashes after previously working, the local shader cache may be corrupted. You can safely clear this by deleting the contents of the shader cache directory for Arma 3 (Steam App ID 107410):
-```bash
+``` bash
 rm -rf ~/.local/share/Steam/steamapps/shadercache/107410/*
 ```
 - **Verify Proton:** If issues persist, use Steam's 'Verify Integrity of Game Files' feature.
@@ -323,7 +328,7 @@ Arma 3 can be launched with the official launcher or with the `-nolauncher` flag
 
 In Arma 3's Steam Properties, go to the **General** tab. In the **Launch Options** field, add:
 
-```         
+```
 %command% -nolauncher
 ```
 
@@ -337,7 +342,7 @@ For most users, official Proton is enough for Arma 3. GE-Proton is worth trying 
 
 Custom Proton builds are installed into:
 
-```         
+```
 ~/.steam/steam/compatibilitytools.d/
 ```
 
@@ -487,7 +492,7 @@ FSYNC=true
 
 Some Proton builds enable the `gamedrive` option (Proton Hotfix does by default). These builds need `STEAM_COMPAT_INSTALL_PATH` and `STEAM_COMPAT_LIBRARY_PATHS` to find the game's Steam library. Without them, Proton deletes the `S:` drive from the prefix, and Arma 3 fails server signature checks with kicks such as:
 
-```         
+```
 Files "dta\bin.pbo" are not signed by a key accepted by this server.
 ```
 
@@ -605,13 +610,13 @@ When the installer asks where to install TeamSpeak 3, select the option labelled
 
 The reason for this is important. 'Install for All Users' places TeamSpeak 3 at:
 
-```         
+```
 C:\Program Files\TeamSpeak 3 Client\
 ```
 
 'Install for current user only' places it at:
 
-```         
+```
 C:\Users\steamuser\AppData\Local\TeamSpeak 3 Client\
 ```
 
@@ -621,7 +626,7 @@ The Arma3Helper script looks for TeamSpeak 3 in `Program Files`. If it is instal
 
 Do not change the installation path. Accept it exactly as the installer presents it. The default path will read:
 
-```         
+```
 C:\Program Files\TeamSpeak 3 Client
 ```
 
@@ -696,7 +701,9 @@ A pop-up window will appear on the first run confirming the installation. If the
 
 ## Manual Plugin Installation (When Auto-Install Fails)
 
-**Warning:** Manual installation should only be attempted if the automatic process fails. Incorrectly placing files can cause plugin conflicts.
+::: {.callout-warning}
+Manual installation should only be attempted if the automatic process fails. Incorrectly placing files can cause plugin conflicts.
+:::
 
 Run the repair command:
 
@@ -744,7 +751,7 @@ The check works down a three-stage chain for each radio mod:
 
 Each failing stage prints the exact fix. For example, a plugin disabled after a crash reports:
 
-```         
+```
 [FAIL] TeamSpeak plugin disabled after a crash
   Re-enable with:  ./Arma3Helper.sh tfarmod --enable
 ```
@@ -767,7 +774,11 @@ Follow this sequence to verify ACRE2 is working:
 2.  Launch Arma 3 with CBA_A3 and ACRE2 active.
 3.  Wait for the main menu to load. Arma will attempt plugin installation.
 4.  Switch back to TeamSpeak 3. Go to **Tools** → **Options** → **Addons**.
-5.  Confirm the ACRE2 plugin is listed and enabled. **Important:** Plugins are typically enabled by default. If you see the plugin is already enabled, do **not** click 'Enable', as this will toggle it off. If the plugin is not working, verify it is truly enabled in this menu.
+5.  Confirm the ACRE2 plugin is listed and enabled.
+
+::: {.callout-important}
+Plugins are typically enabled by default. If you see the plugin is already enabled, do **not** click 'Enable', as this will toggle it off. If the plugin is not working, verify it is truly enabled in this menu.
+:::
 
 
 If the plugin is listed but not working, verify that both Arma 3 and TeamSpeak 3 are running under the same user account. They should not be run with different permission levels (for example, one as root and one as a normal user).
@@ -822,13 +833,15 @@ If the script reports "Could not find the TFAR plugin", the mod is not installed
 
 Launch TeamSpeak 3 using the Arma3Helper script:
 
-```bash
+``` bash
 ./Arma3Helper.sh
 ```
 
 In TeamSpeak 3, go to **Tools** → **Options** → **Addons** (or **Plugins**). You should see the TFAR plugin listed.
 
-**Important:** Plugins are typically enabled by default. If you see the plugin is already enabled, do **not** click 'Enable', as this will toggle it off. If the plugin is not working, verify it is truly enabled in this menu.
+::: {.callout-important}
+Plugins are typically enabled by default. If you see the plugin is already enabled, do **not** click 'Enable', as this will toggle it off. If the plugin is not working, verify it is truly enabled in this menu.
+:::
 
 ## Plugin Disabled After a Crash
 
@@ -888,7 +901,7 @@ The Arma 2.22 update moved the game to XAudio 2.9. Some Proton versions crackle 
 
 If crackling persists, add an override for `xaudio2_9` instead of `xaudio2_7`:
 
-```         
+```
 WINEDLLOVERRIDES="xaudio2_9=n" %command%
 ```
 
@@ -997,7 +1010,7 @@ The following problems come from ProtonDB reports for Arma 3. Each is uncommon b
 
 High-polling-rate mice (8000 Hz) can freeze the game during fast movement. Set this launch option:
 
-```         
+```
 PROTON_USE_RAW_INPUT=1 %command%
 ```
 
@@ -1036,7 +1049,9 @@ If this troubleshooting chapter does not resolve your problem, gather diagnostic
 
 Copy the output of both commands and include it when asking for help. This information allows others to diagnose the problem quickly.
 
-**Do not open a GitHub issue** before asking on the Discord. Most problems are configuration issues that the community can resolve rapidly. GitHub issues are reserved for confirmed bugs. Note, this discord is not run by the script author but by volunteers from the community. Be patient and respectful when asking for help, this also is not related to UKSF Taskforce Alpha in any way.
+::: {.callout-warning}
+Do **not** open a GitHub issue before asking on the Discord. Most problems are configuration issues that the community can resolve rapidly. GitHub issues are reserved for confirmed bugs. Note, this discord is not run by the script author but by volunteers from the community. Be patient and respectful when asking for help, this also is not related to UKSF Taskforce Alpha in any way.
+:::
 
 [Discord: https://discord.gg/p28Ra36](https://discord.gg/p28Ra36)
 
@@ -1050,7 +1065,7 @@ Arma 3 supports a range of launch parameters that improve startup time and frame
 
 The following baseline is safe for all systems and is what the current Linux guides recommend:
 
-```         
+```
 %command% -noLauncher -noSplash -skipIntro -world=empty -noLogs
 ```
 
@@ -1072,7 +1087,7 @@ Do not use `-malloc` parameters. The old `tbb4malloc_bi` recommendation is outda
 
 If Arma 3 freezes when a mission starts, disable Esync for the game. This applies to Proton 10 and older. Proton 11 obsoleted the variable.
 
-```         
+```
 PROTON_NO_ESYNC=1 %command%
 ```
 
@@ -1086,7 +1101,7 @@ PROTON_NO_ESYNC=1 %command%
 
 **`DXVK_HUD`** draws an in-game overlay with frame rate, frame time, and GPU information. Use it to measure the effect of any change, then remove it.
 
-```         
+```
 DXVK_HUD=fps %command%
 ```
 
@@ -1164,20 +1179,23 @@ curl -o ~/Arma3Helper.sh \
 https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh
 chmod +x ~/Arma3Helper.sh
 
-# 2. Create the config file
+# 2. Create the config file (auto-detection works out of the box)
 ./Arma3Helper.sh createconfig
 
-# 3. Edit the config file and set your Proton version
-nano ~/.config/arma3helper/config
-
-# 4. Check dependencies
+# 3. Check dependencies
 ./Arma3Helper.sh checkdeps
+
+# 4. Install TeamSpeak 3 (downloads and installs the latest version)
+./Arma3Helper.sh install
 
 # 5. Install Windows components (after first Arma launch)
 ./Arma3Helper.sh winetricks Arma
 
-# 6. Install TeamSpeak 3 (after downloading the Windows installer)
-./Arma3Helper.sh install ~/Downloads/TeamSpeak3-Client-win64-3.x.x.exe
+# 6. Point Arma's Documents and Downloads at your real host folders
+./Arma3Helper.sh bindhost
+
+# 7. Verify the radio mods are fully installed and loaded
+./Arma3Helper.sh verifyradio
 ```
 
 ## Daily Usage
@@ -1187,16 +1205,39 @@ nano ~/.config/arma3helper/config
 ./Arma3Helper.sh
 ```
 
-## TFAR Plugin Installation Path
+## Radio Plugin Commands
 
 ``` bash
-# Adjust to your actual compatdata path – check with debug first:
-./Arma3Helper.sh debug | grep COMPAT_DATA_PATH
+# Install the ACRE2 plugin manually (if auto-install failed):
+./Arma3Helper.sh acremod
 
-# Then copy TFAR files (example path – substitute your real path):
-PLUGINS="$HOME/.steam/steam/steamapps/compatdata/107410/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins"
-cp TFAR_win32.dll TFAR_win64.dll "$PLUGINS/"
-cp -r radio-sounds/ "$PLUGINS/"
+# Install the TFAR plugin (TFAR does not auto-install):
+./Arma3Helper.sh tfarmod
+
+# Re-enable a plugin TeamSpeak disabled after a crash:
+./Arma3Helper.sh tfarmod --enable
+
+# Diagnose why radios cannot find the game instance:
+./Arma3Helper.sh acrecheck
+
+# Full radio chain check (mod downloaded, loaded, plugin installed):
+./Arma3Helper.sh verifyradio
+
+# List installed and loaded mods:
+./Arma3Helper.sh listmods
+```
+
+## Prefix Management
+
+``` bash
+# Diagnose the prefix (read-only):
+./Arma3Helper.sh prefix doctor
+
+# Repair the prefix in place:
+./Arma3Helper.sh prefix reset
+
+# Recreate the prefix (backs up user data first):
+./Arma3Helper.sh prefix reset --full
 ```
 
 ## Troubleshooting Commands
@@ -1211,7 +1252,7 @@ cp -r radio-sounds/ "$PLUGINS/"
 # List Proton versions:
 ./Arma3Helper.sh listproton
 
-# Fix audio issues:
+# Install recommended audio/visual DLLs:
 ./Arma3Helper.sh winetricks Arma
 
 # Open Wine config:
