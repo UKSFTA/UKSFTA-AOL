@@ -10,24 +10,35 @@ public to support the wider Arma on Linux/Unix community.
 
 ## Improvements
 
-- **Steam Library Auto-Detection:** Now supports external drives and non-standard
+- **Steam Library Auto-Detection:** Supports external drives and non-standard
   library locations automatically.
-- **Custom Proton Support:** Improved support for custom and GE-Proton versions.
 - **Proton Auto-Detection:** Reads the Proton version from Arma's prefix and
   matches it to an installed build. No manual version setting needed.
-- **Setup Wizard:** Automated onboarding detects existing installations and guides
-  users through necessary `winetricks`/dependency setup.
-- **Prefix Protection:** Proactive safety check alerts users to potential Proton-version
-  mismatches to prevent configuration breakage.
-- **Automated CI/CD:** Integrated GitHub Actions workflow to automatically render and
-  deploy the documentation to GitHub Pages (supporting both HTML and PDF formats).
-  CI also runs shellcheck and a unit test suite on every push and pull request.
-- **Unit Tests:** A test suite (`test_arma3helper.sh`) covers version matching,
-  Steam library discovery, symlink handling, and edge cases.
-- **Full Documentation:** A guide in Quarto (`.qmd`) format is included, written to
-  the standards of the Joint Service Publication 101 (JSP 101) Writers' Handbook.
-- **Enhanced Dependencies:** Expanded checks to ensure multilib GStreamer libraries are
-  present for audio support.
+- **TeamSpeak 3 Auto-Install:** Downloads, verifies, and installs the latest
+  TeamSpeak 3 silently. Also offered automatically if TeamSpeak is missing
+  at launch.
+- **Radio Plugin Management:** `tfarmod` and `acremod` install the TFAR and
+  ACRE2 plugins. `verifyradio` checks the full chain: Workshop mod downloaded,
+  mod loaded in the game, plugin installed in TeamSpeak.
+- **Radio Diagnostics:** `acrecheck` names the exact cause when radio plugins
+  cannot find the game. `listmods` shows installed and loaded mods, read live
+  from the running game.
+- **Native Host Documents:** `bindhost` points Arma's Documents and Downloads
+  at your real host folders through Wine's registry, so profiles survive
+  prefix deletion. No Steam launch options or symlinks needed.
+- **Prefix Doctor and Reset:** `prefix doctor` diagnoses a broken prefix;
+  `prefix reset` repairs in place or recreates it with full backup.
+- **Setup Wizard:** Chains the full onboarding flow: dependencies, TeamSpeak
+  install, Winetricks DLLs, and radio plugin verification.
+- **Self-Healing Launch:** Warns with the exact fix when plugins are missing
+  or disabled, and offers to install TeamSpeak 3 when absent.
+- **Automated CI/CD:** GitHub Actions renders and deploys the documentation
+  to GitHub Pages, and runs shellcheck plus a unit test suite (86 tests) on
+  every push and pull request.
+- **Full Documentation:** A guide in Quarto (`.qmd`) format, written to the
+  standards of the Joint Service Publication 101 (JSP 101) Writers' Handbook.
+- **Enhanced Dependencies:** Checks multilib GStreamer libraries, the
+  BattlEye runtime, and noexec mounts.
 
 ## Quick Start
 
