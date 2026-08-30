@@ -1073,6 +1073,44 @@ fi
 rm -rf "$MOCK_HOME_16"
 
 echo ""
+
+# ===========================================================================
+echo "── 17. Corrupt config recovery ──"
+# ===========================================================================
+# A config file with a bash syntax error must produce a clean recovery
+# offer, not raw bash parse errors, and must not break 'help'.
+MOCK_HOME_17=$(mktemp -d)
+mkdir -p "$MOCK_HOME_17/.config/arma3helper"
+printf 'PROTON_OFFICIAL_VERSION="unclosed\n' > "$MOCK_HOME_17/.config/arma3helper/config"
+
+# Answer 'y' to reset with a clean template
+_output_17=$(printf 'y\n' | HOME="$MOCK_HOME_17" XDG_CONFIG_HOME="$MOCK_HOME_17/.config" "$HELPER" help 2>&1 || true)
+if echo "$_output_17" | grep -q "syntax error" && \
+   bash -n "$MOCK_HOME_17/.config/arma3helper/config" 2>/dev/null; then
+    pass "corrupt config offers recovery and resets cleanly"
+else
+    fail "corrupt config recovery failed"
+fi
+if [[ -f "$MOCK_HOME_17/.config/arma3helper/config.bak-arma3helper" ]]; then
+    pass "corrupt config backed up before reset"
+else
+    fail "corrupt config backup missing"
+fi
+
+# Answer 'n' to refuse reset -> must exit 1 without help output.
+# Use a fresh corrupt config (the previous one was reset to valid).
+MOCK_HOME_17b=$(mktemp -d)
+mkdir -p "$MOCK_HOME_17b/.config/arma3helper"
+printf 'PROTON_OFFICIAL_VERSION="unclosed\n' > "$MOCK_HOME_17b/.config/arma3helper/config"
+if printf 'n\n' | HOME="$MOCK_HOME_17b" XDG_CONFIG_HOME="$MOCK_HOME_17b/.config" "$HELPER" help >/dev/null 2>&1; then
+    fail "refusing config reset should exit non-zero"
+else
+    pass "refusing config reset exits cleanly"
+fi
+rm -rf "$MOCK_HOME_17b"
+rm -rf "$MOCK_HOME_17"
+
+echo ""
 # ===========================================================================
 TOTAL=$((PASS + FAIL + SKIP))
 echo "═══════════════════════════════════════════════════════════════"
