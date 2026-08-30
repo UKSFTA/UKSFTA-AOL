@@ -1037,6 +1037,42 @@ fi
 rm -rf "$MOCK_HOME_12"
 
 echo ""
+
+# ===========================================================================
+echo "── 16. Fresh-machine onboarding: wizard triggers with no Proton ──"
+# ===========================================================================
+# A brand-new user has a prefix but no Proton installed. The setup wizard
+# must still appear (it was previously suppressed because the fallback
+# fabricated PROTON_OFFICIAL_VERSION="10.0", which looked like a config).
+MOCK_HOME_16=$(mktemp -d)
+mkdir -p "$MOCK_HOME_16/.config/arma3helper"
+cat > "$MOCK_HOME_16/.config/arma3helper/config" << EOFCFG
+PROTON_OFFICIAL_VERSION=""
+COMPAT_DATA_PATH=""
+STEAM_LIBRARY_PATH=""
+PROTON_CUSTOM_VERSION=""
+ESYNC=true
+FSYNC=true
+EOFCFG
+mkdir -p "$MOCK_HOME_16/.steam/steam/steamapps/compatdata/107410"
+# Answer 'n' to the wizard and 'n' to the TS3 offer; the wizard prompt
+# must appear before the launch warnings.
+_output_16=$(printf 'n\nn\n' | HOME="$MOCK_HOME_16" XDG_CONFIG_HOME="$MOCK_HOME_16/.config" "$HELPER" 2>&1 || true)
+if echo "$_output_16" | grep -q "Welcome to Arma3Helper!"; then
+    pass "fresh machine with no Proton still shows the setup wizard"
+else
+    fail "wizard suppressed when no Proton is installed"
+fi
+# The guard message must not claim a specific version was searched for.
+_output_16b=$(HOME="$MOCK_HOME_16" XDG_CONFIG_HOME="$MOCK_HOME_16/.config" "$HELPER" install 2>&1 || true)
+if echo "$_output_16b" | grep -q "No Proton version was found on this system"; then
+    pass "guard reports no Proton without fabricating a version"
+else
+    fail "guard fabricated a Proton version"
+fi
+rm -rf "$MOCK_HOME_16"
+
+echo ""
 # ===========================================================================
 TOTAL=$((PASS + FAIL + SKIP))
 echo "═══════════════════════════════════════════════════════════════"
