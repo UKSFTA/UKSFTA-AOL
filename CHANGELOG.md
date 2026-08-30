@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-08-29
+
+### Fixed
+
+- Informational commands (`help`, `checkdeps`, `listproton`, `debug`,
+  `acrecheck`, `verifyradio`, plugin commands, `prefix doctor`) now work
+  on a fresh machine with no Steam, no Proton, and no prefix. Previously
+  the global Proton guard killed them first.
+- Detection warnings (auto-detect, S: drive) suppressed for informational
+  commands, so a new user gets clean output instead of alarming noise.
+- The setup wizard now appears on fresh machines. The fallback previously
+  fabricated `PROTON_OFFICIAL_VERSION="10.0"` when no Proton was found,
+  which looked like a configured value and silently suppressed onboarding.
+- The Proton guard now reports honestly when no version exists instead of
+  claiming a specific one was searched for.
+- The generated config file now matches the full documented template.
+  New users get the same guidance as `createconfig` users.
+- A corrupt config file (bash syntax error) is caught before sourcing,
+  backed up, and offers a clean reset instead of raw parse errors.
+
 ## [2.5.0] - 2026-08-29
 
 ### Removed
@@ -235,7 +255,8 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.5.0...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.5.1...master
+[2.5.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.2.1...v2.3.0
