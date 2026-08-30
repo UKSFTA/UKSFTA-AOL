@@ -15,6 +15,25 @@ jobs:
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
 
+  format:
+    name: Formatting (shfmt)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download shfmt
+        run: |
+          curl -sL -o /tmp/shfmt "https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_linux_amd64"
+          chmod +x /tmp/shfmt
+
+      - name: Formatting check
+        run: |
+          if ! /tmp/shfmt -d -i 4 Arma3Helper.sh test_arma3helper.sh; then
+            echo "Formatting differences found. Run: shfmt -w -i 4 Arma3Helper.sh test_arma3helper.sh"
+            exit 1
+          fi
+
   tests:
     name: Test suite
     runs-on: ubuntu-latest

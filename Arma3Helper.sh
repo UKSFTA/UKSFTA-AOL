@@ -154,8 +154,8 @@ _check_for_update() {
     stamp="$(_update_stamp)"
     if [[ -f "$stamp" ]]; then
         local age
-        age=$(( $(date +%s) - $(stat -c %Y "$stamp" 2>/dev/null || echo 0) ))
-        (( age < 86400 )) && return 0
+        age=$(($(date +%s) - $(stat -c %Y "$stamp" 2>/dev/null || echo 0)))
+        ((age < 86400)) && return 0
     fi
 
     # Fetch remote script header and extract its _SCRIPTVER
@@ -168,7 +168,7 @@ _check_for_update() {
     # Record check time only on a successful fetch, so a flaky network
     # retries on the next run instead of waiting 24 hours.
     if [[ -n "$remote_ver" ]]; then
-        date +%s > "$stamp" 2>/dev/null
+        date +%s >"$stamp" 2>/dev/null
     fi
 
     if [[ -n "$remote_ver" && "$remote_ver" != "$_SCRIPTVER" ]]; then
@@ -191,7 +191,7 @@ _ensure_config() {
             echo "  sudo chown -R $(id -un):$(id -gn) $USERCONFIG"
             exit 1
         fi
-        cat <<'EOF' > "$USERCONFIG/config"
+        cat <<'EOF' >"$USERCONFIG/config"
 # Arma3Helper user configuration
 #
 # This file persists across script updates. Settings here override the
@@ -327,7 +327,7 @@ if ! bash -n "$USERCONFIG/config" 2>/dev/null; then
     read -p "Fix it now with a clean template? (y/n) " -n 1 -r
     echo
     if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-        cat <<'EOF' > "$USERCONFIG/config"
+        cat <<'EOF' >"$USERCONFIG/config"
 # Arma3Helper user configuration
 #
 # This file persists across script updates. Settings here override the
@@ -381,9 +381,9 @@ _warn_missing_plugins() {
     # shellcheck disable=SC2012
     for f in "$plugins_dir"/config/plugins/*.disabled; do
         case "$(basename "$f")" in
-            acre2_*.dll.disabled|TFAR_*.dll.disabled)
-                disabled="${disabled:+$disabled, }$(basename "$f")"
-                ;;
+        acre2_*.dll.disabled | TFAR_*.dll.disabled)
+            disabled="${disabled:+$disabled, }$(basename "$f")"
+            ;;
         esac
     done
 
@@ -457,14 +457,14 @@ _setup_wizard() {
                 {
                     echo "WIZARD_DISMISSED=true"
                     cat "$USERCONFIG/config"
-                } > "$USERCONFIG/config.tmp" 2>/dev/null && mv "$USERCONFIG/config.tmp" "$USERCONFIG/config"
+                } >"$USERCONFIG/config.tmp" 2>/dev/null && mv "$USERCONFIG/config.tmp" "$USERCONFIG/config"
             fi
         else
             # Persist the dismissal so the prompt does not return on every launch
             {
                 echo "WIZARD_DISMISSED=true"
                 cat "$USERCONFIG/config"
-            } > "$USERCONFIG/config.tmp" 2>/dev/null && mv "$USERCONFIG/config.tmp" "$USERCONFIG/config"
+            } >"$USERCONFIG/config.tmp" 2>/dev/null && mv "$USERCONFIG/config.tmp" "$USERCONFIG/config"
             echo "Wizard dismissed. Edit your config file to run it again."
         fi
     fi
@@ -741,10 +741,10 @@ _detect_distro() {
         id_like=$(grep "^ID_LIKE=" /etc/os-release | cut -d= -f2 | tr -d '"')
         local combined="$id_like $id"
         case "$combined" in
-            *arch*)            echo "arch"    ;;
-            *debian*|*ubuntu*) echo "debian"  ;;
-            *fedora*|*rhel*|*centos*|*suse*)  echo "fedora"  ;;
-            *)                 echo "unknown" ;;
+        *arch*) echo "arch" ;;
+        *debian* | *ubuntu*) echo "debian" ;;
+        *fedora* | *rhel* | *centos* | *suse*) echo "fedora" ;;
+        *) echo "unknown" ;;
         esac
     else
         echo "unknown"
@@ -760,21 +760,21 @@ _check_pkg() {
     distro="$(_detect_distro)"
 
     case "$distro" in
-        arch)
-            pacman -Q "$pkg" &>/dev/null
-            ;;
-        debian)
-            # Strip architecture suffix (for example :i386) for the package name check
-            local base_pkg="${pkg%%:*}"
-            dpkg -l "$base_pkg" 2>/dev/null | grep -q "^ii"
-            ;;
-        fedora)
-            rpm -q "$pkg" &>/dev/null
-            ;;
-        *)
-            # Generic fallback: check if a library matching the name is loaded
-            ldconfig -p 2>/dev/null | grep -qi "$pkg"
-            ;;
+    arch)
+        pacman -Q "$pkg" &>/dev/null
+        ;;
+    debian)
+        # Strip architecture suffix (for example :i386) for the package name check
+        local base_pkg="${pkg%%:*}"
+        dpkg -l "$base_pkg" 2>/dev/null | grep -q "^ii"
+        ;;
+    fedora)
+        rpm -q "$pkg" &>/dev/null
+        ;;
+    *)
+        # Generic fallback: check if a library matching the name is loaded
+        ldconfig -p 2>/dev/null | grep -qi "$pkg"
+        ;;
     esac
 }
 
@@ -809,52 +809,52 @@ _check_dependencies() {
     local install_cmd=""
 
     case "$distro" in
-        arch)
-            pkgs=(
-                ["gstreamer (64-bit)"]="gstreamer"
-                ["gst-plugins-base (64-bit)"]="gst-plugins-base"
-                ["gst-plugins-good (64-bit)"]="gst-plugins-good"
-                ["gstreamer (32-bit)"]="lib32-gstreamer"
-                ["gst-plugins-base (32-bit)"]="lib32-gst-plugins-base"
-                ["gst-plugins-good (32-bit)"]="lib32-gst-plugins-good"
-            )
-            install_cmd="sudo pacman -S"
-            echo "  Note: 32-bit packages require the 'multilib' repository."
-            echo "  Enable it in /etc/pacman.conf if not already active."
-            echo ""
-            ;;
-        debian)
-            pkgs=(
-                ["gstreamer (64-bit)"]="gstreamer1.0-tools"
-                ["gst-plugins-base (64-bit)"]="gstreamer1.0-plugins-base"
-                ["gst-plugins-good (64-bit)"]="gstreamer1.0-plugins-good"
-                ["gstreamer (32-bit)"]="gstreamer1.0-tools:i386"
-                ["gst-plugins-base (32-bit)"]="gstreamer1.0-plugins-base:i386"
-                ["gst-plugins-good (32-bit)"]="gstreamer1.0-plugins-good:i386"
-            )
-            install_cmd="sudo apt install"
-            echo "  Note: 32-bit packages require multiarch support."
-            echo "  Enable it with: sudo dpkg --add-architecture i386 && sudo apt update"
-            echo ""
-            ;;
-        fedora)
-            pkgs=(
-                ["gstreamer (64-bit)"]="gstreamer1"
-                ["gst-plugins-base (64-bit)"]="gstreamer1-plugins-base"
-                ["gst-plugins-good (64-bit)"]="gstreamer1-plugins-good"
-                ["gstreamer (32-bit)"]="gstreamer1.i686"
-                ["gst-plugins-base (32-bit)"]="gstreamer1-plugins-base.i686"
-                ["gst-plugins-good (32-bit)"]="gstreamer1-plugins-good.i686"
-            )
-            install_cmd="sudo dnf install"
-            ;;
-        *)
-            echo -e "  \e[33mWarning\e[0m: Cannot identify your distribution."
-            echo "  Please install the following packages manually:"
-            echo "    gstreamer, gst-plugins-base, gst-plugins-good"
-            echo "    (and their 32-bit / lib32 equivalents)"
-            echo ""
-            ;;
+    arch)
+        pkgs=(
+            ["gstreamer (64-bit)"]="gstreamer"
+            ["gst-plugins-base (64-bit)"]="gst-plugins-base"
+            ["gst-plugins-good (64-bit)"]="gst-plugins-good"
+            ["gstreamer (32-bit)"]="lib32-gstreamer"
+            ["gst-plugins-base (32-bit)"]="lib32-gst-plugins-base"
+            ["gst-plugins-good (32-bit)"]="lib32-gst-plugins-good"
+        )
+        install_cmd="sudo pacman -S"
+        echo "  Note: 32-bit packages require the 'multilib' repository."
+        echo "  Enable it in /etc/pacman.conf if not already active."
+        echo ""
+        ;;
+    debian)
+        pkgs=(
+            ["gstreamer (64-bit)"]="gstreamer1.0-tools"
+            ["gst-plugins-base (64-bit)"]="gstreamer1.0-plugins-base"
+            ["gst-plugins-good (64-bit)"]="gstreamer1.0-plugins-good"
+            ["gstreamer (32-bit)"]="gstreamer1.0-tools:i386"
+            ["gst-plugins-base (32-bit)"]="gstreamer1.0-plugins-base:i386"
+            ["gst-plugins-good (32-bit)"]="gstreamer1.0-plugins-good:i386"
+        )
+        install_cmd="sudo apt install"
+        echo "  Note: 32-bit packages require multiarch support."
+        echo "  Enable it with: sudo dpkg --add-architecture i386 && sudo apt update"
+        echo ""
+        ;;
+    fedora)
+        pkgs=(
+            ["gstreamer (64-bit)"]="gstreamer1"
+            ["gst-plugins-base (64-bit)"]="gstreamer1-plugins-base"
+            ["gst-plugins-good (64-bit)"]="gstreamer1-plugins-good"
+            ["gstreamer (32-bit)"]="gstreamer1.i686"
+            ["gst-plugins-base (32-bit)"]="gstreamer1-plugins-base.i686"
+            ["gst-plugins-good (32-bit)"]="gstreamer1-plugins-good.i686"
+        )
+        install_cmd="sudo dnf install"
+        ;;
+    *)
+        echo -e "  \e[33mWarning\e[0m: Cannot identify your distribution."
+        echo "  Please install the following packages manually:"
+        echo "    gstreamer, gst-plugins-base, gst-plugins-good"
+        echo "    (and their 32-bit / lib32 equivalents)"
+        echo ""
+        ;;
     esac
 
     # Check each package and collect any that are missing
@@ -862,7 +862,7 @@ _check_dependencies() {
     if [[ ${#pkgs[@]} -gt 0 ]]; then
         for label in "${!pkgs[@]}"; do
             local pkg="${pkgs[$label]}"
-            local check_name="${pkg%%:*}"   # strip :i386 suffix for the check
+            local check_name="${pkg%%:*}" # strip :i386 suffix for the check
             if _check_pkg "$check_name"; then
                 echo -e "  \e[32m[OK]\e[0m     $label  ($pkg)"
             else
@@ -933,9 +933,9 @@ _check_dependencies() {
     else
         echo -e "  \e[33m[MISSING]\e[0m vulkan tools not found"
         case "$distro" in
-            arch)   echo "  Install: sudo pacman -S vulkan-tools" ;;
-            debian) echo "  Install: sudo apt install mesa-vulkan-drivers vulkan-utils" ;;
-            fedora) echo "  Install: sudo dnf install mesa-vulkan-drivers vulkan-tools" ;;
+        arch) echo "  Install: sudo pacman -S vulkan-tools" ;;
+        debian) echo "  Install: sudo apt install mesa-vulkan-drivers vulkan-utils" ;;
+        fedora) echo "  Install: sudo dnf install mesa-vulkan-drivers vulkan-tools" ;;
         esac
     fi
 
@@ -1044,20 +1044,20 @@ _check_radio_plugins() {
     # shellcheck disable=SC2012
     for f in "$plugins_dir"/*.dll; do
         case "$(basename "$f")" in
-            acre2_*.dll)
-                acre2_found=1
-                ;;
-            TFAR_*.dll)
-                tfar_found=1
-                ;;
+        acre2_*.dll)
+            acre2_found=1
+            ;;
+        TFAR_*.dll)
+            tfar_found=1
+            ;;
         esac
     done
     # shellcheck disable=SC2012
     for f in "$plugins_dir"/*.disabled "$plugins_dir"/../config/plugins/*.disabled; do
         case "$(basename "$f")" in
-            TFAR_*.dll.disabled|acre2_*.dll.disabled)
-                disabled_found="${disabled_found:+$disabled_found, }$(basename "$f")"
-                ;;
+        TFAR_*.dll.disabled | acre2_*.dll.disabled)
+            disabled_found="${disabled_found:+$disabled_found, }$(basename "$f")"
+            ;;
         esac
     done
 
@@ -1170,10 +1170,10 @@ _check_radio_connection() {
         while IFS= read -r id; do
             [[ -z "$id" ]] && continue
             case "$id" in
-                751965892) acre2=1 ;;
-                894678801|620019431) tfar=1 ;;
+            751965892) acre2=1 ;;
+            894678801 | 620019431) tfar=1 ;;
             esac
-        done <<< "$mods"
+        done <<<"$mods"
         if [[ "$acre2" == 1 ]]; then
             echo -e "  \e[32m[OK]\e[0m     ACRE2 is in the loaded mod list"
         else
@@ -1208,7 +1208,7 @@ _get_arma_cmdline() {
     local pid
     pid="$(pgrep -f "arma3_x64" | head -1)"
     if [[ -n "$pid" && -r "/proc/$pid/cmdline" ]]; then
-        tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null
+        tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null
         return 0
     fi
     # Fallback: newest RPT header records the launch command.
@@ -1306,10 +1306,10 @@ _list_loaded_mods() {
         printf "  %-12s %s\n" "$id" "$name"
         count=$((count + 1))
         case "$id" in
-            751965892) acre2=1 ;;
-            894678801|620019431) tfar=1 ;;
+        751965892) acre2=1 ;;
+        894678801 | 620019431) tfar=1 ;;
         esac
-    done <<< "$mods"
+    done <<<"$mods"
     echo ""
     echo "  Total mods loaded: $count"
     if [[ "$acre2" == 1 ]]; then
@@ -1366,7 +1366,7 @@ _check_radio_chain() {
                 loaded=1
                 break
             fi
-        done <<< "$mods"
+        done <<<"$mods"
     fi
     if [[ "$loaded" == 1 ]]; then
         echo -e "  \e[32m[OK]\e[0m     Mod loaded in the current game session"
@@ -1521,7 +1521,7 @@ _enable_tfar_plugin() {
     local cfg_plugins="$plugins_dir/../config/plugins"
     # shellcheck disable=SC2012
     for f in "$plugins_dir"/TFAR_*.dll.disabled "$plugins_dir"/acre2_*.dll.disabled \
-             "$cfg_plugins"/TFAR_*.dll.disabled "$cfg_plugins"/acre2_*.dll.disabled; do
+        "$cfg_plugins"/TFAR_*.dll.disabled "$cfg_plugins"/acre2_*.dll.disabled; do
         if [[ -f "$f" ]]; then
             local target="${f%.disabled}"
             mv -f "$f" "$target"
@@ -1635,13 +1635,13 @@ _is_info_command() {
         return 0
     fi
     case "$1" in
-        help|""|checkdeps|listproton|debug|update|createconfig|listmods| \
-        tfarmod|acremod|acrecheck|verifyradio|winetricks|winecfg)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
+    help | "" | checkdeps | listproton | debug | update | createconfig | listmods | \
+        tfarmod | acremod | acrecheck | verifyradio | winetricks | winecfg)
+        return 0
+        ;;
+    *)
+        return 1
+        ;;
     esac
 }
 
@@ -1722,8 +1722,8 @@ TSPATH="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client
 # Normalize the version string by removing any user-provided 'Proton ' prefix
 PROTON_OFFICIAL_VERSION="${PROTON_OFFICIAL_VERSION#Proton }"
 
-if [[ "$PROTON_OFFICIAL_VERSION" == "Proton Experimental" || \
-      "$PROTON_OFFICIAL_VERSION" == "Experimental" ]]; then
+if [[ "$PROTON_OFFICIAL_VERSION" == "Proton Experimental" ||
+    "$PROTON_OFFICIAL_VERSION" == "Experimental" ]]; then
     PROTON_OFFICIAL_VERSION="- Experimental"
     IS_EXPERIMENTAL=true
 elif [[ -z "$PROTON_OFFICIAL_VERSION" && -z "$PROTON_CUSTOM_VERSION" ]]; then
@@ -1754,8 +1754,8 @@ elif [[ -z "$PROTON_OFFICIAL_VERSION" && -z "$PROTON_CUSTOM_VERSION" ]]; then
                     _ver="$(basename "$_dir")"
                     [[ -f "$_dir/proton" ]] || continue
                     # Skip non-game runtimes
-                    [[ "$_ver" == *"Runtime"* || "$_ver" == *"BattlEye"* || \
-                       "$_ver" == *"Hotfix"* || "$_ver" == *"Experimental"* ]] && continue
+                    [[ "$_ver" == *"Runtime"* || "$_ver" == *"BattlEye"* ||
+                        "$_ver" == *"Hotfix"* || "$_ver" == *"Experimental"* ]] && continue
                     # Strategy 1: direct substring
                     if [[ "$_ver" == *"$_prefix_version"* ]]; then
                         _match_dir="$_dir"
@@ -1763,7 +1763,7 @@ elif [[ -z "$PROTON_OFFICIAL_VERSION" && -z "$PROTON_CUSTOM_VERSION" ]]; then
                     fi
                     # Strategy 2: compare extracted version numbers
                     # Strip known prefixes, extract X.Y or X.Y.Z
-                    _norm="${_ver// /-}"  # normalize spaces to hyphens
+                    _norm="${_ver// /-}" # normalize spaces to hyphens
                     _norm="${_norm#Proton}"
                     _norm="${_norm#-}"
                     if [[ "$_norm" =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]]; then
@@ -1810,8 +1810,8 @@ elif [[ -z "$PROTON_OFFICIAL_VERSION" && -z "$PROTON_CUSTOM_VERSION" ]]; then
                     _ver="$(basename "$_dir")"
                     [[ -f "$_dir/proton" ]] || continue
                     # Skip non-game runtimes
-                    [[ "$_ver" == *"Runtime"* || "$_ver" == *"BattlEye"* || \
-                       "$_ver" == *"Hotfix"* || "$_ver" == *"Experimental"* ]] && continue
+                    [[ "$_ver" == *"Runtime"* || "$_ver" == *"BattlEye"* ||
+                        "$_ver" == *"Hotfix"* || "$_ver" == *"Experimental"* ]] && continue
                     # Strategy 1: direct substring
                     if [[ "$_ver" == *"$_prefix_version"* ]]; then
                         _match_dir="$_dir"
@@ -1885,12 +1885,12 @@ elif [[ -z "$PROTON_OFFICIAL_VERSION" && -z "$PROTON_CUSTOM_VERSION" ]]; then
             if [[ -d "$_sa/common" ]]; then
                 while IFS= read -r _dir; do
                     _ver="$(basename "$_dir")"
-                    if [[ -f "$_dir/proton" ]] && \
-                       [[ "$_ver" == *"Proton "* ]] && \
-                       [[ "$_ver" != *"Runtime"* ]] && \
-                       [[ "$_ver" != *"BattlEye"* ]] && \
-                       [[ "$_ver" != *"Hotfix"* ]] && \
-                       [[ "$_ver" != *"-"* ]]; then
+                    if [[ -f "$_dir/proton" ]] &&
+                        [[ "$_ver" == *"Proton "* ]] &&
+                        [[ "$_ver" != *"Runtime"* ]] &&
+                        [[ "$_ver" != *"BattlEye"* ]] &&
+                        [[ "$_ver" != *"Hotfix"* ]] &&
+                        [[ "$_ver" != *"-"* ]]; then
                         _num="${_ver#Proton }"
                         _best_proton="$(printf '%s\n' "$_num" "$_best_proton" | sort -V | tail -1)"
                     fi
@@ -1948,10 +1948,10 @@ else
             if [[ -d "$_sa/common" ]]; then
                 while IFS= read -r _dir; do
                     _ver="$(basename "$_dir")"
-                    if [[ -f "$_dir/proton" ]] && \
-                       [[ "$_ver" == *"Proton $PROTON_OFFICIAL_VERSION"* ]] && \
-                       [[ "$_ver" != *"Runtime"* ]] && \
-                       [[ "$_ver" != *"BattlEye"* ]]; then
+                    if [[ -f "$_dir/proton" ]] &&
+                        [[ "$_ver" == *"Proton $PROTON_OFFICIAL_VERSION"* ]] &&
+                        [[ "$_ver" != *"Runtime"* ]] &&
+                        [[ "$_ver" != *"BattlEye"* ]]; then
                         PROTONEXEC="$_dir/proton"
                         break 2
                     fi
@@ -2103,12 +2103,12 @@ _prefix_doctor() {
             echo -e "\e[33mWARN\e[0m restricted mount options (nosuid/nodev)."
         fi
         case "$opts" in
-            *ntfs*|*fuseblk*) echo -e "\e[33mWARN\e[0m NTFS/fuseblk filesystem. Symlinks and exec may be limited." ;;
+        *ntfs* | *fuseblk*) echo -e "\e[33mWARN\e[0m NTFS/fuseblk filesystem. Symlinks and exec may be limited." ;;
         esac
     fi
 
     echo ""
-    if (( issues > 0 )); then
+    if ((issues > 0)); then
         echo -e "\e[31mVerdict: $issues issue(s) found.\e[0m"
         echo "Try './Arma3Helper.sh prefix reset' to repair in place."
         exit 1
@@ -2326,7 +2326,7 @@ _bind_host_dirs() {
         {
             echo "BIND_HOST_DIRS=true"
             cat "$USERCONFIG/config"
-        } > "$USERCONFIG/config.tmp" 2>/dev/null && mv "$USERCONFIG/config.tmp" "$USERCONFIG/config"
+        } >"$USERCONFIG/config.tmp" 2>/dev/null && mv "$USERCONFIG/config.tmp" "$USERCONFIG/config"
     fi
 
     echo ""
@@ -2429,8 +2429,8 @@ _check_for_update
 
 case "$1" in
 
-    # -------------------------------------------------------------------------
-    "install")
+# -------------------------------------------------------------------------
+"install")
     # -------------------------------------------------------------------------
     # Install the TeamSpeak 3 Windows client into Arma's Wine prefix.
     #
@@ -2451,117 +2451,117 @@ case "$1" in
     #   3. (automatic) The crashing Gamepad and Joystick plugin is deleted at
     #      every launch.
     # -------------------------------------------------------------------------
-        echo ""
-        echo "============================================================"
-        echo " TeamSpeak 3 Installer"
-        echo "============================================================"
-        echo ""
+    echo ""
+    echo "============================================================"
+    echo " TeamSpeak 3 Installer"
+    echo "============================================================"
+    echo ""
 
-        installer_path="$2"
-        if [[ -z "$installer_path" ]]; then
-            if _download_ts3; then
-                installer_path="$_TS3_INSTALLER"
-            else
-                exit 1
-            fi
-        fi
-
-        if [[ ! -f "$installer_path" ]]; then
-            echo "Error: File not found: $installer_path"
+    installer_path="$2"
+    if [[ -z "$installer_path" ]]; then
+        if _download_ts3; then
+            installer_path="$_TS3_INSTALLER"
+        else
             exit 1
         fi
+    fi
 
+    if [[ ! -f "$installer_path" ]]; then
+        echo "Error: File not found: $installer_path"
+        exit 1
+    fi
+
+    echo ""
+    echo "Installing TeamSpeak 3 into Arma's Wine prefix..."
+    echo "This installs silently with 'Install for All Users'."
+    echo "The Gamepad and Joystick plugin is deleted automatically at"
+    echo "every launch."
+    echo ""
+
+    if "$PROTONEXEC" run "$installer_path" /S /ALLUSERS; then
         echo ""
-        echo "Installing TeamSpeak 3 into Arma's Wine prefix..."
-        echo "This installs silently with 'Install for All Users'."
-        echo "The Gamepad and Joystick plugin is deleted automatically at"
-        echo "every launch."
+        echo "Installer finished."
+    else
         echo ""
+        echo -e "\e[33mWarning\e[0m: The silent installer reported an error."
+        echo "Run it manually to see the installer dialog:"
+        echo "  $installer_path"
+        exit 1
+    fi
 
-        if "$PROTONEXEC" run "$installer_path" /S /ALLUSERS; then
-            echo ""
-            echo "Installer finished."
-        else
-            echo ""
-            echo -e "\e[33mWarning\e[0m: The silent installer reported an error."
-            echo "Run it manually to see the installer dialog:"
-            echo "  $installer_path"
-            exit 1
-        fi
+    # Verify the install landed where the script expects it.
+    _ts3exe="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe"
+    if [[ -x "$_ts3exe" ]]; then
+        echo -e "\e[32mTeamSpeak 3 installed successfully.\e[0m"
+        echo "Launch it with:  ./Arma3Helper.sh"
+    else
+        echo -e "\e[33mNote\e[0m: ts3client_win64.exe was not found at the expected path yet."
+        echo "Launch Arma 3 and then run './Arma3Helper.sh' - the script"
+        echo "checks the full prefix for the executable."
+    fi
+    ;;
 
-        # Verify the install landed where the script expects it.
-        _ts3exe="$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/ts3client_win64.exe"
-        if [[ -x "$_ts3exe" ]]; then
-            echo -e "\e[32mTeamSpeak 3 installed successfully.\e[0m"
-            echo "Launch it with:  ./Arma3Helper.sh"
-        else
-            echo -e "\e[33mNote\e[0m: ts3client_win64.exe was not found at the expected path yet."
-            echo "Launch Arma 3 and then run './Arma3Helper.sh' - the script"
-            echo "checks the full prefix for the executable."
-        fi
-        ;;
-
-    # -------------------------------------------------------------------------
-    "checkdeps")
+# -------------------------------------------------------------------------
+"checkdeps")
     # -------------------------------------------------------------------------
     # Check all required system packages are installed.
-        _check_dependencies
-        ;;
+    _check_dependencies
+    ;;
 
-    # -------------------------------------------------------------------------
-    "listproton")
+# -------------------------------------------------------------------------
+"listproton")
     # -------------------------------------------------------------------------
     # List all Proton versions available on this system (official and custom).
-        echo ""
-        echo "================================================================"
-        echo " Available Proton Versions"
-        echo "================================================================"
-        echo ""
-        echo "Official Proton versions (installed via Steam):"
+    echo ""
+    echo "================================================================"
+    echo " Available Proton Versions"
+    echo "================================================================"
+    echo ""
+    echo "Official Proton versions (installed via Steam):"
 
-        _any_official=false
-        while IFS= read -r lib_path; do
-            _sa="$lib_path/steamapps"
-            if [[ -d "$_sa/common" ]]; then
-                # Use find to locate directories starting with 'Proton' to handle spaces and wildcards
-                while IFS= read -r _dir; do
-                    if [[ -f "$_dir/proton" ]]; then
-                        _ver="$(basename "$_dir")"
-                        # Filter out non-Proton runtimes (Runtime, BattlEye) but keep Version, Experimental, and Hotfix
-                        if [[ "$_ver" == *"Proton "* ]] && [[ "$_ver" != *"Runtime"* ]] && [[ "$_ver" != *"BattlEye"* ]] && [[ "$_ver" != *"-"* ]]; then
-                            echo "  $_ver"
-                            _any_official=true
-                        elif [[ "$_ver" == *"Proton - Experimental"* || "$_ver" == *"Proton Hotfix"* ]]; then
-                            echo "  $_ver"
-                            _any_official=true
-                        fi
+    _any_official=false
+    while IFS= read -r lib_path; do
+        _sa="$lib_path/steamapps"
+        if [[ -d "$_sa/common" ]]; then
+            # Use find to locate directories starting with 'Proton' to handle spaces and wildcards
+            while IFS= read -r _dir; do
+                if [[ -f "$_dir/proton" ]]; then
+                    _ver="$(basename "$_dir")"
+                    # Filter out non-Proton runtimes (Runtime, BattlEye) but keep Version, Experimental, and Hotfix
+                    if [[ "$_ver" == *"Proton "* ]] && [[ "$_ver" != *"Runtime"* ]] && [[ "$_ver" != *"BattlEye"* ]] && [[ "$_ver" != *"-"* ]]; then
+                        echo "  $_ver"
+                        _any_official=true
+                    elif [[ "$_ver" == *"Proton - Experimental"* || "$_ver" == *"Proton Hotfix"* ]]; then
+                        echo "  $_ver"
+                        _any_official=true
                     fi
-                done < <(find "$_sa/common" -maxdepth 1 -type d -name "Proton*")
-            fi
-        done < <(_find_steam_libraries)
-
-        if [[ "$_any_official" == false ]]; then
-            echo "  (none found – install a Proton version via Steam)"
+                fi
+            done < <(find "$_sa/common" -maxdepth 1 -type d -name "Proton*")
         fi
+    done < <(_find_steam_libraries)
 
-        echo ""
-        echo "Custom / GE Proton builds (from compatibilitytools.d):"
-        _list_custom_proton
+    if [[ "$_any_official" == false ]]; then
+        echo "  (none found – install a Proton version via Steam)"
+    fi
 
-        echo ""
-        echo "================================================================"
-        echo ""
-        echo "To use a version, edit your config file:"
-        echo "  $USERCONFIG/config"
-        echo ""
-        echo "Official:  Set PROTON_OFFICIAL_VERSION='9.0'  (example)"
-        echo "Custom:    Set PROTON_CUSTOM_VERSION='GE-Proton9-20' (example)"
-        echo "           Leave the other one empty."
-        echo ""
-        ;;
+    echo ""
+    echo "Custom / GE Proton builds (from compatibilitytools.d):"
+    _list_custom_proton
 
-    # -------------------------------------------------------------------------
-    "winetricks")
+    echo ""
+    echo "================================================================"
+    echo ""
+    echo "To use a version, edit your config file:"
+    echo "  $USERCONFIG/config"
+    echo ""
+    echo "Official:  Set PROTON_OFFICIAL_VERSION='9.0'  (example)"
+    echo "Custom:    Set PROTON_CUSTOM_VERSION='GE-Proton9-20' (example)"
+    echo "           Leave the other one empty."
+    echo ""
+    ;;
+
+# -------------------------------------------------------------------------
+"winetricks")
     # -------------------------------------------------------------------------
     # Run winetricks (or protontricks) inside Arma 3's Wine prefix.
     #
@@ -2577,181 +2577,181 @@ case "$1" in
     #     xact_x64       – Microsoft XACT audio engine (fixes audio issues)
     #     xaudio29       – XAudio2 library (fixes audio crackling)
     #     xaudio2_9      – XAudio 2.9 (fixes crackle after Arma 2.22 update)
-        echo "Running winetricks inside Arma 3's Wine prefix..."
-        _get_wrappercmd || exit 1
-        echo "Using: ${_WRAPPER[*]}"
+    echo "Running winetricks inside Arma 3's Wine prefix..."
+    _get_wrappercmd || exit 1
+    echo "Using: ${_WRAPPER[*]}"
+    echo ""
+    export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
+
+    if [[ "$2" == "Arma" ]]; then
+        echo "Installing recommended DLLs and components for Arma 3..."
+        echo "  d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9"
         echo ""
-        export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
+        echo "This may take several minutes. Do not interrupt."
+        echo ""
+        "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9
+        echo ""
+        echo "Done. Run Arma 3 and check if audio/thermal-vision issues are resolved."
+    else
+        echo "Running: ${_WRAPPER[*]} ${*:2}"
+        "${_WRAPPER[@]}" "${@:2}"
+    fi
+    ;;
 
-        if [[ "$2" == "Arma" ]]; then
-            echo "Installing recommended DLLs and components for Arma 3..."
-            echo "  d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9"
-            echo ""
-            echo "This may take several minutes. Do not interrupt."
-            echo ""
-            "${_WRAPPER[@]}" d3dcompiler_43 d3dx10_43 d3dx11_43 mfc140 xact_x64 xaudio29 xaudio2_9
-            echo ""
-            echo "Done. Run Arma 3 and check if audio/thermal-vision issues are resolved."
-        else
-            echo "Running: ${_WRAPPER[*]} ${*:2}"
-            "${_WRAPPER[@]}" "${@:2}"
-        fi
-        ;;
-
-    # -------------------------------------------------------------------------
-    "winecfg")
+# -------------------------------------------------------------------------
+"winecfg")
     # -------------------------------------------------------------------------
     # Open Wine's configuration GUI for Arma 3's prefix.
     # Useful for manually overriding DLLs or adjusting Windows version settings.
-        echo "Opening winecfg for Arma 3's Wine prefix..."
-        _get_wrappercmd || exit 1
-        echo "Using: ${_WRAPPER[*]}"
-        export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
-        "${_WRAPPER[@]}" winecfg
-        ;;
+    echo "Opening winecfg for Arma 3's Wine prefix..."
+    _get_wrappercmd || exit 1
+    echo "Using: ${_WRAPPER[*]}"
+    export WINEPREFIX="$COMPAT_DATA_PATH/pfx"
+    "${_WRAPPER[@]}" winecfg
+    ;;
 
-    # -------------------------------------------------------------------------
-    "debug")
+# -------------------------------------------------------------------------
+"debug")
     # -------------------------------------------------------------------------
     # Print full debug information.
     # Share this output when asking for help on the Discord.
-        echo ""
-        echo "================================================================"
-        echo " Debug Information – Arma3Helper.sh"
-        echo "================================================================"
-        echo ""
+    echo ""
+    echo "================================================================"
+    echo " Debug Information – Arma3Helper.sh"
+    echo "================================================================"
+    echo ""
 
-        echo "Script version:         $_SCRIPTVER"
+    echo "Script version:         $_SCRIPTVER"
 
-        # Check for updates via GitHub (ignore cache — user explicitly asked)
-        if command -v curl &>/dev/null; then
-            _remote_ver=$(curl -fs --max-time 5 \
-                "https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh" \
-                2>/dev/null | grep -m1 '^_SCRIPTVER=' | cut -d'"' -f2)
-            if [[ -n "$_remote_ver" ]]; then
-                if [[ "$_remote_ver" == "$_SCRIPTVER" ]]; then
-                    echo "GitHub version:         $_remote_ver (up to date)"
-                else
-                    echo "GitHub version:         $_remote_ver (update available!)"
-                fi
+    # Check for updates via GitHub (ignore cache — user explicitly asked)
+    if command -v curl &>/dev/null; then
+        _remote_ver=$(curl -fs --max-time 5 \
+            "https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh" \
+            2>/dev/null | grep -m1 '^_SCRIPTVER=' | cut -d'"' -f2)
+        if [[ -n "$_remote_ver" ]]; then
+            if [[ "$_remote_ver" == "$_SCRIPTVER" ]]; then
+                echo "GitHub version:         $_remote_ver (up to date)"
+            else
+                echo "GitHub version:         $_remote_ver (update available!)"
             fi
         fi
+    fi
 
-        echo "--- Paths ---"
-        echo "Steam root:              $_STEAM_ROOT"
-        echo "Arma 3 library:          $(_find_arma_library)"
-        echo "COMPAT_DATA_PATH:        $COMPAT_DATA_PATH"
-        echo "STEAM_LIBRARY_PATH:      $STEAM_LIBRARY_PATH"
-        echo "Proton executable:       $PROTONEXEC"
-        echo "TS3 executable:          $TSPATH"
+    echo "--- Paths ---"
+    echo "Steam root:              $_STEAM_ROOT"
+    echo "Arma 3 library:          $(_find_arma_library)"
+    echo "COMPAT_DATA_PATH:        $COMPAT_DATA_PATH"
+    echo "STEAM_LIBRARY_PATH:      $STEAM_LIBRARY_PATH"
+    echo "Proton executable:       $PROTONEXEC"
+    echo "TS3 executable:          $TSPATH"
+    echo ""
+    echo "--- Status ---"
+    echo "Proton executable found: $(test -x "$PROTONEXEC" && echo 'YES' || echo 'NO')"
+    echo "TS3 executable found:    $(test -x "$TSPATH" && echo 'YES' || echo 'NO')"
+    echo "Config file:             $USERCONFIG/config"
+    echo ""
+    echo "--- Proton Configuration ---"
+    if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
+        echo "Type:    Custom"
+        echo "Value:   $PROTON_CUSTOM_VERSION"
+    elif [[ "$IS_EXPERIMENTAL" == true ]]; then
+        echo "Type:    Official Experimental"
+    else
+        echo "Type:    Official"
+        echo "Version: $PROTON_OFFICIAL_VERSION"
+    fi
+    echo ""
+    echo "--- Environment Variables ---"
+    echo "STEAM_COMPAT_DATA_PATH:          $STEAM_COMPAT_DATA_PATH"
+    echo "STEAM_COMPAT_CLIENT_INSTALL_PATH: $STEAM_COMPAT_CLIENT_INSTALL_PATH"
+    echo "STEAM_COMPAT_INSTALL_PATH:       $STEAM_COMPAT_INSTALL_PATH"
+    echo "STEAM_COMPAT_LIBRARY_PATHS:      $STEAM_COMPAT_LIBRARY_PATHS"
+    echo "SteamAppId / SteamGameId:        $SteamAppId / $SteamGameId"
+    echo "ESync:  $ESYNC"
+    echo "FSync:  $FSYNC"
+    echo ""
+    # Warn about the Proton 11.0-1 Workshop regression: it re-downloaded
+    # Workshop mods on every launch. Fixed in 11.0-2.
+    if [[ -n "$PROTON_OFFICIAL_VERSION" && "$PROTON_OFFICIAL_VERSION" == "11.0-1" ]]; then
+        echo -e "\e[33mWarning\e[0m: Proton 11.0-1 re-downloads Workshop mods on every launch."
+        echo "Update to Proton 11.0-2 or newer, or use Proton Experimental."
         echo ""
-        echo "--- Status ---"
-        echo "Proton executable found: $(test -x "$PROTONEXEC" && echo 'YES' || echo 'NO')"
-        echo "TS3 executable found:    $(test -x "$TSPATH" && echo 'YES' || echo 'NO')"
-        echo "Config file:             $USERCONFIG/config"
-        echo ""
-        echo "--- Proton Configuration ---"
-        if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
-            echo "Type:    Custom"
-            echo "Value:   $PROTON_CUSTOM_VERSION"
-        elif [[ "$IS_EXPERIMENTAL" == true ]]; then
-            echo "Type:    Official Experimental"
-        else
-            echo "Type:    Official"
-            echo "Version: $PROTON_OFFICIAL_VERSION"
-        fi
-        echo ""
-        echo "--- Environment Variables ---"
-        echo "STEAM_COMPAT_DATA_PATH:          $STEAM_COMPAT_DATA_PATH"
-        echo "STEAM_COMPAT_CLIENT_INSTALL_PATH: $STEAM_COMPAT_CLIENT_INSTALL_PATH"
-        echo "STEAM_COMPAT_INSTALL_PATH:       $STEAM_COMPAT_INSTALL_PATH"
-        echo "STEAM_COMPAT_LIBRARY_PATHS:      $STEAM_COMPAT_LIBRARY_PATHS"
-        echo "SteamAppId / SteamGameId:        $SteamAppId / $SteamGameId"
-        echo "ESync:  $ESYNC"
-        echo "FSync:  $FSYNC"
-        echo ""
-        # Warn about the Proton 11.0-1 Workshop regression: it re-downloaded
-        # Workshop mods on every launch. Fixed in 11.0-2.
-        if [[ -n "$PROTON_OFFICIAL_VERSION" && "$PROTON_OFFICIAL_VERSION" == "11.0-1" ]]; then
-            echo -e "\e[33mWarning\e[0m: Proton 11.0-1 re-downloads Workshop mods on every launch."
-            echo "Update to Proton 11.0-2 or newer, or use Proton Experimental."
-            echo ""
-        fi
-        echo ""
-        echo "--- Launch Command ---"
-        echo "\"$PROTONEXEC\" run \"$TSPATH\""
-        echo ""
-        echo "--- All Steam Libraries ---"
-        while IFS= read -r lib; do
-            _sa="$lib/steamapps"
-            _has_arma=""
-            [[ -d "$_sa/compatdata/107410" ]] && _has_arma=" [Arma 3 here]"
-            echo "  $lib$_has_arma"
-        done < <(_find_steam_libraries)
-        echo ""
-        echo "--- Custom Proton Builds ---"
-        _list_custom_proton
-        echo ""
-        echo "================================================================"
-        echo ""
-        echo "If you are seeking support, please share the output above"
-        echo "on the ArmaOnUnix Discord: https://discord.gg/p28Ra36"
-        echo ""
-        ;;
+    fi
+    echo ""
+    echo "--- Launch Command ---"
+    echo "\"$PROTONEXEC\" run \"$TSPATH\""
+    echo ""
+    echo "--- All Steam Libraries ---"
+    while IFS= read -r lib; do
+        _sa="$lib/steamapps"
+        _has_arma=""
+        [[ -d "$_sa/compatdata/107410" ]] && _has_arma=" [Arma 3 here]"
+        echo "  $lib$_has_arma"
+    done < <(_find_steam_libraries)
+    echo ""
+    echo "--- Custom Proton Builds ---"
+    _list_custom_proton
+    echo ""
+    echo "================================================================"
+    echo ""
+    echo "If you are seeking support, please share the output above"
+    echo "on the ArmaOnUnix Discord: https://discord.gg/p28Ra36"
+    echo ""
+    ;;
 
-    # -------------------------------------------------------------------------
-    "update")
+# -------------------------------------------------------------------------
+"update")
     # -------------------------------------------------------------------------
     # Download the latest version of this script from GitHub.
     # WARNING: This will overwrite any changes made directly inside the script.
     # Your external config file (USERCONFIG/config) is NOT affected.
-        echo -e "\e[33mWarning\e[0m: This will overwrite any edits made inside the script itself."
-        echo "Your external config at '$USERCONFIG/config' will NOT be affected."
-        echo "(Use './Arma3Helper.sh createconfig' to migrate settings to the external config.)"
-        echo ""
-        _confirmation "Proceed with update?"
-        _checkinstall curl
-        if [[ -w "$0" ]]; then
-            # Can write to the script in place. Download to a temp file first,
-            # then move it into place atomically. This protects the running
-            # script from truncation if the download is interrupted.
-            _tmpscript="$0.tmp"
-            if curl -fo "$_tmpscript" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
-                chmod +x "$_tmpscript"
-                cp -f "$0" "$0.bak-arma3helper"
-                mv -f "$_tmpscript" "$0"
-                echo ""
-                echo "Update complete. Run './Arma3Helper.sh debug' to verify."
-                echo "Previous version kept at: $0.bak-arma3helper"
-            else
-                rm -f "$_tmpscript"
-                echo ""
-                echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
-                exit 1
-            fi
+    echo -e "\e[33mWarning\e[0m: This will overwrite any edits made inside the script itself."
+    echo "Your external config at '$USERCONFIG/config' will NOT be affected."
+    echo "(Use './Arma3Helper.sh createconfig' to migrate settings to the external config.)"
+    echo ""
+    _confirmation "Proceed with update?"
+    _checkinstall curl
+    if [[ -w "$0" ]]; then
+        # Can write to the script in place. Download to a temp file first,
+        # then move it into place atomically. This protects the running
+        # script from truncation if the download is interrupted.
+        _tmpscript="$0.tmp"
+        if curl -fo "$_tmpscript" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
+            chmod +x "$_tmpscript"
+            cp -f "$0" "$0.bak-arma3helper"
+            mv -f "$_tmpscript" "$0"
+            echo ""
+            echo "Update complete. Run './Arma3Helper.sh debug' to verify."
+            echo "Previous version kept at: $0.bak-arma3helper"
         else
-            # Cannot write to $0 (e.g. installed in /usr/bin). Download to the
-            # current working directory, which the user owns. Never write to
-            # dirname "$0" — that is the same permission-denied directory.
-            _dest="$PWD/Arma3Helper.sh"
-            echo "Cannot write to '$0' (permission denied)."
-            echo "Downloading to: $_dest"
-            if curl -fo "$_dest" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
-                chmod +x "$_dest"
-                echo ""
-                echo "Update complete. Replace the installed script manually:"
-                echo "  sudo cp $_dest $0"
-                echo "Then run: ./Arma3Helper.sh debug"
-            else
-                echo ""
-                echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
-                exit 1
-            fi
+            rm -f "$_tmpscript"
+            echo ""
+            echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
+            exit 1
         fi
-        ;;
+    else
+        # Cannot write to $0 (e.g. installed in /usr/bin). Download to the
+        # current working directory, which the user owns. Never write to
+        # dirname "$0" — that is the same permission-denied directory.
+        _dest="$PWD/Arma3Helper.sh"
+        echo "Cannot write to '$0' (permission denied)."
+        echo "Downloading to: $_dest"
+        if curl -fo "$_dest" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
+            chmod +x "$_dest"
+            echo ""
+            echo "Update complete. Replace the installed script manually:"
+            echo "  sudo cp $_dest $0"
+            echo "Then run: ./Arma3Helper.sh debug"
+        else
+            echo ""
+            echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
+            exit 1
+        fi
+    fi
+    ;;
 
-    # -------------------------------------------------------------------------
-    "prefix")
+# -------------------------------------------------------------------------
+"prefix")
     # -------------------------------------------------------------------------
     # Diagnose or repair Arma's Wine prefix.
     #
@@ -2780,8 +2780,8 @@ case "$1" in
     fi
     ;;
 
-    # -------------------------------------------------------------------------
-    "listmods")
+# -------------------------------------------------------------------------
+"listmods")
     # -------------------------------------------------------------------------
     # List installed and/or loaded mods for debugging.
     #
@@ -2811,16 +2811,16 @@ case "$1" in
     echo ""
     ;;
 
-    # -------------------------------------------------------------------------
-    "verifyradio")
+# -------------------------------------------------------------------------
+"verifyradio")
     # -------------------------------------------------------------------------
     # Verify the full chain for ACRE2 and TFAR: Workshop mod downloaded,
     # mod loaded in the running game, plugin installed in TeamSpeak.
     _verify_radio
     ;;
 
-    # -------------------------------------------------------------------------
-    "acremod")
+# -------------------------------------------------------------------------
+"acremod")
     # -------------------------------------------------------------------------
     # Install the ACRE2 plugin into the prefix TeamSpeak install. ACRE2
     # normally auto-installs its plugin when the mod loads, but that can
@@ -2828,16 +2828,16 @@ case "$1" in
     _install_acre2_plugin
     ;;
 
-    # -------------------------------------------------------------------------
-    "acrecheck")
+# -------------------------------------------------------------------------
+"acrecheck")
     # -------------------------------------------------------------------------
     # Diagnose why the radio plugins cannot talk to Arma 3 (the 'cannot
     # find game instance' error). Names the exact cause and fix.
     _check_radio_connection
     ;;
 
-    # -------------------------------------------------------------------------
-    "tfarmod")
+# -------------------------------------------------------------------------
+"tfarmod")
     # -------------------------------------------------------------------------
     # Install the Task Force Radio plugin into the prefix TeamSpeak install.
     # TFAR does not auto-install its plugin (unlike ACRE2). The plugin DLLs
@@ -2852,146 +2852,146 @@ case "$1" in
     fi
     ;;
 
-    # -------------------------------------------------------------------------
-    "createconfig")
+# -------------------------------------------------------------------------
+"createconfig")
     # -------------------------------------------------------------------------
     # Create an external config file at ~/.config/arma3helper/config.
     # This file persists across script updates. Settings in it override
     # the defaults set inside this script.
-        if [[ -e "$USERCONFIG/config" ]]; then
-            echo -e "\e[33mA config file already exists at:\e[0m $USERCONFIG/config"
-            _confirmation "Override it with a fresh template?"
-        fi
-        _checkinstall curl
-        mkdir -p "$USERCONFIG"
-        # mktemp avoids leaving an orphaned .tmp file on Ctrl-C
-        _tmpconfig="$(mktemp "$USERCONFIG/config.XXXXXX")"
-        if curl -fo "$_tmpconfig" \
-            https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/config; then
-            mv "$_tmpconfig" "$USERCONFIG/config"
-            echo ""
-            echo "Config file created at: $USERCONFIG/config"
-            echo "Edit it to set your Proton version and other preferences."
-        else
-            rm -f "$_tmpconfig"
-            echo ""
-            echo -e "\e[31mError\e[0m: Download failed. Config was NOT created."
-            exit 1
-        fi
-        ;;
-    "bindhost")
+    if [[ -e "$USERCONFIG/config" ]]; then
+        echo -e "\e[33mA config file already exists at:\e[0m $USERCONFIG/config"
+        _confirmation "Override it with a fresh template?"
+    fi
+    _checkinstall curl
+    mkdir -p "$USERCONFIG"
+    # mktemp avoids leaving an orphaned .tmp file on Ctrl-C
+    _tmpconfig="$(mktemp "$USERCONFIG/config.XXXXXX")"
+    if curl -fo "$_tmpconfig" \
+        https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/config; then
+        mv "$_tmpconfig" "$USERCONFIG/config"
+        echo ""
+        echo "Config file created at: $USERCONFIG/config"
+        echo "Edit it to set your Proton version and other preferences."
+    else
+        rm -f "$_tmpconfig"
+        echo ""
+        echo -e "\e[31mError\e[0m: Download failed. Config was NOT created."
+        exit 1
+    fi
+    ;;
+"bindhost")
     # -------------------------------------------------------------------------
     # Point the prefix's Documents and Downloads at the real host folders.
-        _bind_host_dirs
-        ;;
-    "unbindhost")
+    _bind_host_dirs
+    ;;
+"unbindhost")
     # -------------------------------------------------------------------------
     # Revert Documents and Downloads to the prefix-local folders.
-        _unbind_host_dirs
-        ;;
+    _unbind_host_dirs
+    ;;
 
-    # -------------------------------------------------------------------------
-    "help"|*)
+# -------------------------------------------------------------------------
+"help" | *)
     # -------------------------------------------------------------------------
     # Print usage information.
-        echo ""
-        echo "================================================================"
-        echo " Arma3Helper.sh – Usage Guide"
-        echo "================================================================"
-        echo ""
-        echo " ./Arma3Helper.sh"
-        echo "     Launch TeamSpeak 3 inside Arma 3's Wine prefix."
-        echo "     Always start Arma 3 FIRST before running this."
-        echo ""
-        echo " ./Arma3Helper.sh install [path/to/TS3-installer.exe]"
-        echo "     Install TeamSpeak 3 (Windows version) into Arma's prefix."
-        echo "     With no path, downloads and verifies the latest installer"
-        echo "     automatically. Installs silently for All Users."
-        echo ""
-        echo " ./Arma3Helper.sh winetricks Arma"
-        echo "     Install recommended DLLs for Arma 3. Run this once before"
-        echo "     your first session to fix audio and visual issues."
-        echo ""
-        echo " ./Arma3Helper.sh winetricks <args>"
-        echo "     Run any winetricks command inside Arma 3's Wine prefix."
-        echo ""
-        echo " ./Arma3Helper.sh winecfg"
-        echo "     Open Wine configuration for Arma 3's prefix."
-        echo ""
-        echo " ./Arma3Helper.sh checkdeps"
-        echo "     Check all required system packages (GStreamer, winetricks,"
-        echo "     curl, Vulkan tools) plus the BattlEye runtime, the noexec"
-        echo "     mount check, and the ACRE2/TFAR radio plugins."
-        echo ""
-        echo " ./Arma3Helper.sh listmods"
-        echo "     List mods installed and mods loaded in the latest session."
-        echo "     Use 'listmods loaded' or 'listmods installed' for one list."
-        echo ""
-        echo " ./Arma3Helper.sh verifyradio"
-        echo "     Verify the full radio chain for ACRE2 and TFAR: Workshop"
-        echo "     mod downloaded, mod loaded in the game, plugin in TeamSpeak."
-        echo ""
-        echo " ./Arma3Helper.sh acrecheck"
-        echo "     Diagnose why radio plugins cannot find the Arma 3 game"
-        echo "     instance: Arma running, radio mod loaded."
-        echo ""
-        echo " ./Arma3Helper.sh acremod"
-        echo "     Install the ACRE2 plugin manually. ACRE2 normally installs"
-        echo "     it automatically; use this when auto-install failed."
-        echo ""
-        echo " ./Arma3Helper.sh tfarmod"
-        echo "     Install the Task Force Radio plugin into the prefix"
-        echo "     TeamSpeak install. TFAR does not auto-install its plugin."
-        echo ""
-        echo " ./Arma3Helper.sh tfarmod --enable"
-        echo "     Re-enable a radio plugin TeamSpeak disabled after a crash."
-        echo ""
-        echo " ./Arma3Helper.sh listproton"
-        echo "     List all Proton versions installed on this system,"
-        echo "     including official and custom/GE builds."
-        echo ""
-        echo " ./Arma3Helper.sh debug"
-        echo "     Print full diagnostic information. Share this output when"
-        echo "     asking for help on the Discord."
-        echo ""
-        echo " ./Arma3Helper.sh update"
-        echo "     Update this script from GitHub. This resets in-script edits."
-        echo "     Use an external config file to avoid losing your settings."
-        echo ""
-echo " ./Arma3Helper.sh createconfig"
-         echo "     Create an external config at $USERCONFIG/config"
-         echo "     that persists across script updates."
-         echo ""
-         echo " ./Arma3Helper.sh prefix doctor"
-         echo "     Diagnose Arma's Wine prefix (read-only). Checks the"
-         echo "     version file, system directory, drive mappings, and mount."
-         echo ""
-         echo " ./Arma3Helper.sh prefix reset"
-         echo "     Repair the prefix in place. Rebuilds Proton's system files"
-         echo "     and preserves your profiles, loadouts, and TeamSpeak data."
-         echo ""
-         echo " ./Arma3Helper.sh prefix reset --full"
-         echo "     Recreate the prefix. Backs up your Arma 3 profiles and"
-         echo "     TeamSpeak data first, then moves the old prefix aside."
-         echo ""
-         echo " ./Arma3Helper.sh bindhost"
-         echo "     Point Arma's Documents and Downloads at your real host"
-         echo "     folders. Profiles then survive prefix deletion."
-         echo ""
-         echo " ./Arma3Helper.sh unbindhost"
-         echo "     Revert Documents and Downloads to the prefix-local folders."
-         echo ""
-         echo " ./Arma3Helper.sh help"
-         echo "     Show this help message."
-        echo ""
-        echo "================================================================"
-        echo " Before reporting issues, check your settings and run:"
-        echo "   ./Arma3Helper.sh checkdeps"
-        echo "   ./Arma3Helper.sh debug"
-        echo ""
-        echo " Support: https://discord.gg/p28Ra36  (ArmaOnUnix Discord)"
-        echo "================================================================"
-        echo ""
-        ;;
+    echo ""
+    echo "================================================================"
+    echo " Arma3Helper.sh – Usage Guide"
+    echo "================================================================"
+    echo ""
+    echo " ./Arma3Helper.sh"
+    echo "     Launch TeamSpeak 3 inside Arma 3's Wine prefix."
+    echo "     Always start Arma 3 FIRST before running this."
+    echo ""
+    echo " ./Arma3Helper.sh install [path/to/TS3-installer.exe]"
+    echo "     Install TeamSpeak 3 (Windows version) into Arma's prefix."
+    echo "     With no path, downloads and verifies the latest installer"
+    echo "     automatically. Installs silently for All Users."
+    echo ""
+    echo " ./Arma3Helper.sh winetricks Arma"
+    echo "     Install recommended DLLs for Arma 3. Run this once before"
+    echo "     your first session to fix audio and visual issues."
+    echo ""
+    echo " ./Arma3Helper.sh winetricks <args>"
+    echo "     Run any winetricks command inside Arma 3's Wine prefix."
+    echo ""
+    echo " ./Arma3Helper.sh winecfg"
+    echo "     Open Wine configuration for Arma 3's prefix."
+    echo ""
+    echo " ./Arma3Helper.sh checkdeps"
+    echo "     Check all required system packages (GStreamer, winetricks,"
+    echo "     curl, Vulkan tools) plus the BattlEye runtime, the noexec"
+    echo "     mount check, and the ACRE2/TFAR radio plugins."
+    echo ""
+    echo " ./Arma3Helper.sh listmods"
+    echo "     List mods installed and mods loaded in the latest session."
+    echo "     Use 'listmods loaded' or 'listmods installed' for one list."
+    echo ""
+    echo " ./Arma3Helper.sh verifyradio"
+    echo "     Verify the full radio chain for ACRE2 and TFAR: Workshop"
+    echo "     mod downloaded, mod loaded in the game, plugin in TeamSpeak."
+    echo ""
+    echo " ./Arma3Helper.sh acrecheck"
+    echo "     Diagnose why radio plugins cannot find the Arma 3 game"
+    echo "     instance: Arma running, radio mod loaded."
+    echo ""
+    echo " ./Arma3Helper.sh acremod"
+    echo "     Install the ACRE2 plugin manually. ACRE2 normally installs"
+    echo "     it automatically; use this when auto-install failed."
+    echo ""
+    echo " ./Arma3Helper.sh tfarmod"
+    echo "     Install the Task Force Radio plugin into the prefix"
+    echo "     TeamSpeak install. TFAR does not auto-install its plugin."
+    echo ""
+    echo " ./Arma3Helper.sh tfarmod --enable"
+    echo "     Re-enable a radio plugin TeamSpeak disabled after a crash."
+    echo ""
+    echo " ./Arma3Helper.sh listproton"
+    echo "     List all Proton versions installed on this system,"
+    echo "     including official and custom/GE builds."
+    echo ""
+    echo " ./Arma3Helper.sh debug"
+    echo "     Print full diagnostic information. Share this output when"
+    echo "     asking for help on the Discord."
+    echo ""
+    echo " ./Arma3Helper.sh update"
+    echo "     Update this script from GitHub. This resets in-script edits."
+    echo "     Use an external config file to avoid losing your settings."
+    echo ""
+    echo " ./Arma3Helper.sh createconfig"
+    echo "     Create an external config at $USERCONFIG/config"
+    echo "     that persists across script updates."
+    echo ""
+    echo " ./Arma3Helper.sh prefix doctor"
+    echo "     Diagnose Arma's Wine prefix (read-only). Checks the"
+    echo "     version file, system directory, drive mappings, and mount."
+    echo ""
+    echo " ./Arma3Helper.sh prefix reset"
+    echo "     Repair the prefix in place. Rebuilds Proton's system files"
+    echo "     and preserves your profiles, loadouts, and TeamSpeak data."
+    echo ""
+    echo " ./Arma3Helper.sh prefix reset --full"
+    echo "     Recreate the prefix. Backs up your Arma 3 profiles and"
+    echo "     TeamSpeak data first, then moves the old prefix aside."
+    echo ""
+    echo " ./Arma3Helper.sh bindhost"
+    echo "     Point Arma's Documents and Downloads at your real host"
+    echo "     folders. Profiles then survive prefix deletion."
+    echo ""
+    echo " ./Arma3Helper.sh unbindhost"
+    echo "     Revert Documents and Downloads to the prefix-local folders."
+    echo ""
+    echo " ./Arma3Helper.sh help"
+    echo "     Show this help message."
+    echo ""
+    echo "================================================================"
+    echo " Before reporting issues, check your settings and run:"
+    echo "   ./Arma3Helper.sh checkdeps"
+    echo "   ./Arma3Helper.sh debug"
+    echo ""
+    echo " Support: https://discord.gg/p28Ra36  (ArmaOnUnix Discord)"
+    echo "================================================================"
+    echo ""
+    ;;
 
 esac

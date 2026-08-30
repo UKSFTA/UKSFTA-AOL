@@ -28,9 +28,18 @@ SKIP=0
 # ---------------------------------------------------------------------------
 # Test framework
 # ---------------------------------------------------------------------------
-pass() { ((PASS++)); echo "  ✓ $1"; }
-fail() { ((FAIL++)); echo "  ✗ $1"; }
-skip() { ((SKIP++)); echo "  ○ $1 (skipped: $2)"; }
+pass() {
+    ((PASS++))
+    echo "  ✓ $1"
+}
+fail() {
+    ((FAIL++))
+    echo "  ✗ $1"
+}
+skip() {
+    ((SKIP++))
+    echo "  ○ $1 (skipped: $2)"
+}
 
 assert_eq() {
     local got="$1" expected="$2" label="$3"
@@ -86,8 +95,8 @@ _match_prefix_to_proton() {
         _ver="$(basename "$_dir")"
         [[ -f "$_dir/proton" ]] || continue
         # Skip non-game runtimes
-        [[ "$_ver" == *"Runtime"* || "$_ver" == *"BattlEye"* || \
-           "$_ver" == *"Hotfix"* || "$_ver" == *"Experimental"* ]] && continue
+        [[ "$_ver" == *"Runtime"* || "$_ver" == *"BattlEye"* ||
+            "$_ver" == *"Hotfix"* || "$_ver" == *"Experimental"* ]] && continue
 
         # Strategy 1: direct substring
         if [[ "$_ver" == *"$_prefix_version"* ]]; then
@@ -224,7 +233,7 @@ touch "$MOCK/compatibilitytools.d/Proton-CachyOS Latest/proton"
 touch "$MOCK/compatibilitytools.d/Proton 9.0/proton"
 
 # Strategy 1: direct substring match
-echo "11.0-100" > "$MOCK/compatibilitytools.d/Proton-CachyOS Latest/version"
+echo "11.0-100" >"$MOCK/compatibilitytools.d/Proton-CachyOS Latest/version"
 
 # Strategy 2: numeric match (Proton 11.0-2 has "11.0" in name)
 mkdir -p "$MOCK/steamapps/common/Proton 11.0-2"
@@ -240,7 +249,7 @@ assert_eq "$(basename "$match")" "Proton 11.0-2" "Numeric match finds Proton 11.
 
 echo "Strategy 3 — version file"
 # CachyOS version file already has 11.0-100; Proton 10.0 gets a version file
-echo "Proton 10.0-1" > "$MOCK/steamapps/common/Proton 10.0/version"
+echo "Proton 10.0-1" >"$MOCK/steamapps/common/Proton 10.0/version"
 match="$(_match_prefix_to_proton 'Proton 10.0-1' "$MOCK/steamapps/common")"
 assert_eq "$(basename "$match")" "Proton 10.0" "Version file match finds Proton 10.0"
 
@@ -276,7 +285,7 @@ assert_eq "$match" "" "BattlEye Runtime filtered out"
 
 echo "Edge: case sensitivity"
 # CachyOS-11.0-100 vs cachyos-11.0-100 in version file
-echo "cachyos-11.0-100" > "$MOCK/compatibilitytools.d/Proton-CachyOS Latest/version"
+echo "cachyos-11.0-100" >"$MOCK/compatibilitytools.d/Proton-CachyOS Latest/version"
 match="$(_match_prefix_to_proton 'CachyOS-11.0-100' "$MOCK/compatibilitytools.d")"
 # Substring is case-sensitive, so this should fail Strategy 1 and 3 direct
 # But Strategy 3 numeric extraction should still work
@@ -289,7 +298,7 @@ echo "── 6. _find_steam_libraries VDF parsing ──"
 # ===========================================================================
 # Create mock VDF
 MOCK_VDF="$TMPDIR_TEST/libraryfolders.vdf"
-cat > "$MOCK_VDF" << 'VDF'
+cat >"$MOCK_VDF" <<'VDF'
 "libraryfolders"
 {
 	"0"
@@ -372,8 +381,8 @@ if _remove_gamepad_plugin; then
 else
     fail "Gamepad plugin removal reported no removals"
 fi
-if [[ ! -e "$MOCK_PFX/users/steamuser/AppData/Roaming/TS3Client/plugins/gamepad_joystick_win64.dll" && \
-      ! -e "$MOCK_PFX/Program Files/TeamSpeak 3 Client/plugins/gamepad_joystick" ]]; then
+if [[ ! -e "$MOCK_PFX/users/steamuser/AppData/Roaming/TS3Client/plugins/gamepad_joystick_win64.dll" &&
+    ! -e "$MOCK_PFX/Program Files/TeamSpeak 3 Client/plugins/gamepad_joystick" ]]; then
     pass "Gamepad plugin files no longer exist"
 else
     fail "Gamepad plugin files still exist after removal"
@@ -418,7 +427,7 @@ MOCK_HOME="$TMPDIR_TEST/radio-home"
 MOCK_LIB="$TMPDIR_TEST/radio-lib"
 mkdir -p "$MOCK_HOME/.steam/steam/steamapps"
 mkdir -p "$MOCK_HOME/.steam/steam/config"
-cat > "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
+cat >"$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
 "libraryfolders"
 {
 	"0"
@@ -436,8 +445,8 @@ mkdir -p "$TS3_ROOT/plugins"
 mkdir -p "$TS3_ROOT/config/plugins"
 
 # Case A: empty plugins -> both missing
-if _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin" && \
-   ! _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin present"; then
+if _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin" &&
+    ! _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin present"; then
     pass "checkdeps reports both plugins missing when absent"
 else
     fail "checkdeps empty-plugins status wrong"
@@ -445,8 +454,8 @@ fi
 
 # Case B: ACRE2 present, TFAR missing
 touch "$TS3_ROOT/plugins/acre2_win64.dll"
-if _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin present" && \
-   ! _check_radio_plugins 2>&1 | grep -q "TFAR plugin present"; then
+if _check_radio_plugins 2>&1 | grep -q "ACRE2 plugin present" &&
+    ! _check_radio_plugins 2>&1 | grep -q "TFAR plugin present"; then
     pass "checkdeps reports ACRE2 present, TFAR missing"
 else
     fail "checkdeps plugin status wrong (ACRE2/TFAR)"
@@ -461,8 +470,8 @@ else
 fi
 
 # Case D: --enable renames .disabled back to .dll
-if _enable_tfar_plugin 2>&1 | grep -q "Re-enabled: TFAR_win64.dll" && \
-   [[ -f "$TS3_ROOT/config/plugins/TFAR_win64.dll" && ! -e "$TS3_ROOT/config/plugins/TFAR_win64.dll.disabled" ]]; then
+if _enable_tfar_plugin 2>&1 | grep -q "Re-enabled: TFAR_win64.dll" &&
+    [[ -f "$TS3_ROOT/config/plugins/TFAR_win64.dll" && ! -e "$TS3_ROOT/config/plugins/TFAR_win64.dll.disabled" ]]; then
     pass "tfarmod --enable re-enables disabled plugin"
 else
     fail "tfarmod --enable failed to re-enable plugin"
@@ -472,8 +481,8 @@ fi
 # HOME must point at the mock so _find_steam_root finds the fake Steam.
 WS_MOD="$MOCK_LIB/steamapps/workshop/content/107410/623475154/TeamSpeak 3 Client/plugins"
 touch "$WS_MOD/TFAR_win64.dll"
-if ( HOME="$MOCK_HOME" _install_tfar_plugin ) 2>&1 | grep -q "TFAR plugin installed" && \
-   [[ -f "$TS3_ROOT/plugins/TFAR_win64.dll" ]]; then
+if (HOME="$MOCK_HOME" _install_tfar_plugin) 2>&1 | grep -q "TFAR plugin installed" &&
+    [[ -f "$TS3_ROOT/plugins/TFAR_win64.dll" ]]; then
     pass "tfarmod copies TFAR plugin from Workshop mod"
 else
     fail "tfarmod failed to copy TFAR plugin"
@@ -482,7 +491,7 @@ fi
 # Case F: tfarmod with no mod installed reports a clear error.
 # Keep the TS3 plugins folder present but remove the Workshop mod source.
 rm -rf "$MOCK_LIB/steamapps"
-_cf_out="$( HOME="$MOCK_HOME" _install_tfar_plugin 2>&1 )"
+_cf_out="$(HOME="$MOCK_HOME" _install_tfar_plugin 2>&1)"
 if echo "$_cf_out" | grep -q "Could not find the TFAR plugin"; then
     pass "tfarmod reports clear error when mod missing"
 else
@@ -521,7 +530,7 @@ MOCK_HOME="$TMPDIR_TEST/mods-home"
 MOCK_LIB="$TMPDIR_TEST/mods-lib"
 mkdir -p "$MOCK_HOME/.steam/steam/steamapps"
 mkdir -p "$MOCK_HOME/.steam/steam/config"
-cat > "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
+cat >"$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
 "libraryfolders"
 {
 	"0"
@@ -533,14 +542,14 @@ VDF
 sed -i "s|__MOCK_LIB__|$MOCK_LIB|" "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf"
 mkdir -p "$MOCK_LIB/steamapps/workshop/content/107410/751965892"
 mkdir -p "$MOCK_LIB/steamapps/workshop/content/107410/450814997"
-printf 'name = "Advanced Combat Radio Environment 2";\n' > "$MOCK_LIB/steamapps/workshop/content/107410/751965892/mod.cpp"
-printf 'name = "Community Base Addons";\n' > "$MOCK_LIB/steamapps/workshop/content/107410/450814997/mod.cpp"
+printf 'name = "Advanced Combat Radio Environment 2";\n' >"$MOCK_LIB/steamapps/workshop/content/107410/751965892/mod.cpp"
+printf 'name = "Community Base Addons";\n' >"$MOCK_LIB/steamapps/workshop/content/107410/450814997/mod.cpp"
 
 # Mock RPT with a Windows-style -mod= line (as Arma writes it).
 MOCK_COMPAT="$TMPDIR_TEST/mods-compat/107410"
 MOCK_RPT_DIR="$MOCK_COMPAT/pfx/drive_c/users/steamuser/AppData/Local/Arma 3"
 mkdir -p "$MOCK_RPT_DIR"
-cat > "$MOCK_RPT_DIR/Arma3_x64_2026-08-29_00-00-00.rpt" <<'RPT'
+cat >"$MOCK_RPT_DIR/Arma3_x64_2026-08-29_00-00-00.rpt" <<'RPT'
 =====================================================================
 == S:\common\Arma 3\Arma3_x64.exe
 == "S:\common\Arma 3\Arma3_x64.exe" -mod=S:\workshop\content\107410\751965892;S:\workshop\content\107410\450814997
@@ -552,8 +561,8 @@ export COMPAT_DATA_PATH="$MOCK_COMPAT"
 
 # Case A: parse ids from the RPT fallback
 _ids="$(_parse_loaded_mods)"
-if echo "$_ids" | grep -q "^751965892$" && echo "$_ids" | grep -q "^450814997$" && \
-   [[ "$(echo "$_ids" | wc -l)" == "2" ]]; then
+if echo "$_ids" | grep -q "^751965892$" && echo "$_ids" | grep -q "^450814997$" &&
+    [[ "$(echo "$_ids" | wc -l)" == "2" ]]; then
     pass "parse_loaded_mods extracts Workshop ids from RPT"
 else
     fail "parse_loaded_mods wrong (got: $_ids)"
@@ -562,7 +571,7 @@ fi
 # Case B: mod name resolution from mod.cpp
 # _mod_name_from_workshop walks _find_steam_libraries, so HOME must point
 # at the mock Steam install (as in the CI runner, which has no real Steam).
-_nm="$( HOME="$MOCK_HOME" _mod_name_from_workshop 751965892 )"
+_nm="$(HOME="$MOCK_HOME" _mod_name_from_workshop 751965892)"
 if [[ "$_nm" == "Advanced Combat Radio Environment 2" ]]; then
     pass "mod name resolved from mod.cpp"
 else
@@ -570,16 +579,16 @@ else
 fi
 
 # Case C: installed list excludes the content root and names known mods
-_inst="$( HOME="$MOCK_HOME" _list_installed_mods )"
-if ! echo "$_inst" | grep -q "107410\s" && \
-   echo "$_inst" | grep -q "Advanced Combat Radio Environment 2"; then
+_inst="$(HOME="$MOCK_HOME" _list_installed_mods)"
+if ! echo "$_inst" | grep -q "107410\s" &&
+    echo "$_inst" | grep -q "Advanced Combat Radio Environment 2"; then
     pass "installed mods list excludes root and names mods"
 else
     fail "installed mods list wrong"
 fi
 
 # Case D: loaded list flags ACRE2 as loaded
-_load="$( HOME="$MOCK_HOME" _list_loaded_mods )"
+_load="$(HOME="$MOCK_HOME" _list_loaded_mods)"
 if echo "$_load" | grep -q "ACRE2 is loaded"; then
     pass "loaded mods flags ACRE2"
 else
@@ -618,7 +627,7 @@ MOCK_HOME="$TMPDIR_TEST/chain-home"
 MOCK_LIB="$TMPDIR_TEST/chain-lib"
 mkdir -p "$MOCK_HOME/.steam/steam/steamapps"
 mkdir -p "$MOCK_HOME/.steam/steam/config"
-cat > "$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
+cat >"$MOCK_HOME/.steam/steam/config/libraryfolders.vdf" <<'VDF'
 "libraryfolders"
 {
 	"0"
@@ -636,10 +645,10 @@ mkdir -p "$TS3_PLUGINS"
 
 # Case A: nothing installed -> all three stages fail.
 # The Workshop mod dir and plugin DLL are deliberately absent here.
-_out="$( HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod" )"
-if echo "$_out" | grep -q "Workshop mod not downloaded" && \
-   echo "$_out" | grep -q "Mod not in the loaded list" && \
-   echo "$_out" | grep -q "TeamSpeak plugin not installed"; then
+_out="$(HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod")"
+if echo "$_out" | grep -q "Workshop mod not downloaded" &&
+    echo "$_out" | grep -q "Mod not in the loaded list" &&
+    echo "$_out" | grep -q "TeamSpeak plugin not installed"; then
     pass "chain reports all stages when nothing is installed"
 else
     fail "chain all-fail case wrong"
@@ -651,16 +660,16 @@ touch "$MOCK_LIB/steamapps/workshop/content/107410/751965892/mod.cpp"
 touch "$TS3_PLUGINS/acre2_win64.dll"
 RPT_DIR="$MOCK_COMPAT/pfx/drive_c/users/steamuser/AppData/Local/Arma 3"
 mkdir -p "$RPT_DIR"
-cat > "$RPT_DIR/Arma3_x64_2026-08-29_00-00-00.rpt" <<'RPT'
+cat >"$RPT_DIR/Arma3_x64_2026-08-29_00-00-00.rpt" <<'RPT'
 =====================================================================
 == S:\common\Arma 3\Arma3_x64.exe
 == "S:\common\Arma 3\Arma3_x64.exe" -mod=S:\workshop\content\107410\751965892
 =====================================================================
 RPT
-_out="$( HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod" )"
-if echo "$_out" | grep -q "Workshop mod downloaded" && \
-   echo "$_out" | grep -q "Mod loaded in the current game session" && \
-   echo "$_out" | grep -q "TeamSpeak plugin installed"; then
+_out="$(HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod")"
+if echo "$_out" | grep -q "Workshop mod downloaded" &&
+    echo "$_out" | grep -q "Mod loaded in the current game session" &&
+    echo "$_out" | grep -q "TeamSpeak plugin installed"; then
     pass "chain reports all OK when fully installed"
 else
     fail "chain all-ok case wrong (got: $_out)"
@@ -669,7 +678,7 @@ fi
 # Case C: plugin disabled after crash -> flagged distinctly
 rm -f "$TS3_PLUGINS/acre2_win64.dll"
 touch "$TS3_PLUGINS/acre2_win64.dll.disabled"
-_out="$( HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod" )"
+_out="$(HOME="$MOCK_HOME" _check_radio_chain "ACRE2" "751965892" "acre2_win*.dll" "" "acremod")"
 if echo "$_out" | grep -q "disabled after a crash"; then
     pass "chain flags crash-disabled plugin"
 else
@@ -677,7 +686,7 @@ else
 fi
 
 # Case D: verifyradio runs both chains and summarises
-_out="$( HOME="$MOCK_HOME" _verify_radio )"
+_out="$(HOME="$MOCK_HOME" _verify_radio)"
 if echo "$_out" | grep -q "ACRE2" && echo "$_out" | grep -q "TFAR"; then
     pass "verifyradio checks both mods"
 else
@@ -707,8 +716,8 @@ mkdir -p "$TS3_PLUGINS/config"
 
 # Case A: no plugins -> both warnings shown
 _out="$(_warn_missing_plugins)"
-if echo "$_out" | grep -q "ACRE2 plugin not installed" && \
-   echo "$_out" | grep -q "TFAR plugin not installed"; then
+if echo "$_out" | grep -q "ACRE2 plugin not installed" &&
+    echo "$_out" | grep -q "TFAR plugin not installed"; then
     pass "launch warns when both plugins missing"
 else
     fail "launch missing-plugins warning wrong"
@@ -788,10 +797,10 @@ export PROTONEXEC=""
 MOCK_HOME_RESET="$TMPDIR_TEST/prefix-reset/home"
 mkdir -p "$MOCK_HOME_RESET"
 export COMPAT_DATA_PATH="$MOCK_COMPAT"
-( HOME="$MOCK_HOME_RESET" _prefix_reset full >/dev/null 2>&1 ) <<< "y"
+(HOME="$MOCK_HOME_RESET" _prefix_reset full >/dev/null 2>&1) <<<"y"
 _reset_exit=$?
 
-_backup_dirs=( "$MOCK_HOME_RESET"/Arma3Helper-prefix-backup-* )
+_backup_dirs=("$MOCK_HOME_RESET"/Arma3Helper-prefix-backup-*)
 _backup_dir="${_backup_dirs[0]}"
 if [[ "$_reset_exit" == 0 && -n "$_backup_dir" ]]; then
     pass "Prefix reset ran and created a backup"
@@ -858,8 +867,8 @@ if [[ "$BIND_DL" == "$BIND_DL_EXPECTED" ]]; then
 else
     fail "bindhost Downloads value format wrong: $BIND_DL"
 fi
-if [[ "$GUID_DOCS" == "{FDD39AD0-238F-46AF-ADB4-6C85480369C7}" && \
-      "$GUID_DL" == "{374DE290-123F-4565-9164-39C4925E467B}" ]]; then
+if [[ "$GUID_DOCS" == "{FDD39AD0-238F-46AF-ADB4-6C85480369C7}" &&
+    "$GUID_DL" == "{374DE290-123F-4565-9164-39C4925E467B}" ]]; then
     pass "bindhost known-folder GUIDs correct"
 else
     fail "bindhost GUIDs wrong"
@@ -953,8 +962,8 @@ echo "── 13. Version file path: reads \$COMPAT_DATA_PATH/version ──"
 # ===========================================================================
 # Verify the script reads the correct version file path
 _script_version_path=$(grep -n '_prefix_version_file=\|version_file=' "$HELPER" | head -2)
-if echo "$_script_version_path" | grep -q 'COMPAT_DATA_PATH/version' && \
-   ! echo "$_script_version_path" | grep -q 'COMPAT_DATA_PATH/\.\./version'; then
+if echo "$_script_version_path" | grep -q 'COMPAT_DATA_PATH/version' &&
+    ! echo "$_script_version_path" | grep -q 'COMPAT_DATA_PATH/\.\./version'; then
     pass "Version file path uses \$COMPAT_DATA_PATH/version (not ../version)"
 else
     fail "Version file path still uses wrong ../version path"
@@ -968,7 +977,7 @@ echo "── 14. Proton guard: rejects non-executable paths ──"
 # via Proton); informational commands like debug must still work.
 MOCK_HOME_11=$(mktemp -d)
 mkdir -p "$MOCK_HOME_11/.config/arma3helper"
-cat > "$MOCK_HOME_11/.config/arma3helper/config" << EOFCFG
+cat >"$MOCK_HOME_11/.config/arma3helper/config" <<EOFCFG
 PROTON_OFFICIAL_VERSION=""
 COMPAT_DATA_PATH=""
 STEAM_LIBRARY_PATH=""
@@ -977,8 +986,8 @@ ESYNC=true
 FSYNC=true
 EOFCFG
 _output_11=$(HOME="$MOCK_HOME_11" XDG_CONFIG_HOME="$MOCK_HOME_11/.config" "$HELPER" install 2>&1 || true)
-if echo "$_output_11" | grep -q "No Proton executable found" && \
-   echo "$_output_11" | grep -q "Proton-FakeVersion99"; then
+if echo "$_output_11" | grep -q "No Proton executable found" &&
+    echo "$_output_11" | grep -q "Proton-FakeVersion99"; then
     pass "Bad custom version name -> clean error with version shown"
 else
     fail "Bad custom version name -> no error or wrong message"
@@ -995,7 +1004,7 @@ rm -rf "$MOCK_HOME_11"
 # Test absolute path to non-existent file
 MOCK_HOME_11b=$(mktemp -d)
 mkdir -p "$MOCK_HOME_11b/.config/arma3helper"
-cat > "$MOCK_HOME_11b/.config/arma3helper/config" << EOFCFG
+cat >"$MOCK_HOME_11b/.config/arma3helper/config" <<EOFCFG
 PROTON_OFFICIAL_VERSION=""
 COMPAT_DATA_PATH=""
 STEAM_LIBRARY_PATH=""
@@ -1004,8 +1013,8 @@ ESYNC=true
 FSYNC=true
 EOFCFG
 _output_11b=$(HOME="$MOCK_HOME_11b" XDG_CONFIG_HOME="$MOCK_HOME_11b/.config" "$HELPER" install 2>&1 || true)
-if echo "$_output_11b" | grep -q "No Proton executable found" && \
-   echo "$_output_11b" | grep -q "/tmp/totally_fake_proton"; then
+if echo "$_output_11b" | grep -q "No Proton executable found" &&
+    echo "$_output_11b" | grep -q "/tmp/totally_fake_proton"; then
     pass "Bad absolute path -> clean error with path shown"
 else
     fail "Bad absolute path -> no error or wrong message"
@@ -1019,7 +1028,7 @@ echo "── 15. Auto-detect skipped when PROTON_CUSTOM_VERSION set ──"
 # PROTON_OFFICIAL_VERSION should NOT be set to a fallback value
 MOCK_HOME_12=$(mktemp -d)
 mkdir -p "$MOCK_HOME_12/.config/arma3helper"
-cat > "$MOCK_HOME_12/.config/arma3helper/config" << EOFCFG
+cat >"$MOCK_HOME_12/.config/arma3helper/config" <<EOFCFG
 PROTON_OFFICIAL_VERSION=""
 COMPAT_DATA_PATH=""
 STEAM_LIBRARY_PATH=""
@@ -1046,7 +1055,7 @@ echo "── 16. Fresh-machine onboarding: wizard triggers with no Proton ──
 # fabricated PROTON_OFFICIAL_VERSION="10.0", which looked like a config).
 MOCK_HOME_16=$(mktemp -d)
 mkdir -p "$MOCK_HOME_16/.config/arma3helper"
-cat > "$MOCK_HOME_16/.config/arma3helper/config" << EOFCFG
+cat >"$MOCK_HOME_16/.config/arma3helper/config" <<EOFCFG
 PROTON_OFFICIAL_VERSION=""
 COMPAT_DATA_PATH=""
 STEAM_LIBRARY_PATH=""
@@ -1081,12 +1090,12 @@ echo "── 17. Corrupt config recovery ──"
 # offer, not raw bash parse errors, and must not break 'help'.
 MOCK_HOME_17=$(mktemp -d)
 mkdir -p "$MOCK_HOME_17/.config/arma3helper"
-printf 'PROTON_OFFICIAL_VERSION="unclosed\n' > "$MOCK_HOME_17/.config/arma3helper/config"
+printf 'PROTON_OFFICIAL_VERSION="unclosed\n' >"$MOCK_HOME_17/.config/arma3helper/config"
 
 # Answer 'y' to reset with a clean template
 _output_17=$(printf 'y\n' | HOME="$MOCK_HOME_17" XDG_CONFIG_HOME="$MOCK_HOME_17/.config" "$HELPER" help 2>&1 || true)
-if echo "$_output_17" | grep -q "syntax error" && \
-   bash -n "$MOCK_HOME_17/.config/arma3helper/config" 2>/dev/null; then
+if echo "$_output_17" | grep -q "syntax error" &&
+    bash -n "$MOCK_HOME_17/.config/arma3helper/config" 2>/dev/null; then
     pass "corrupt config offers recovery and resets cleanly"
 else
     fail "corrupt config recovery failed"
@@ -1101,7 +1110,7 @@ fi
 # Use a fresh corrupt config (the previous one was reset to valid).
 MOCK_HOME_17b=$(mktemp -d)
 mkdir -p "$MOCK_HOME_17b/.config/arma3helper"
-printf 'PROTON_OFFICIAL_VERSION="unclosed\n' > "$MOCK_HOME_17b/.config/arma3helper/config"
+printf 'PROTON_OFFICIAL_VERSION="unclosed\n' >"$MOCK_HOME_17b/.config/arma3helper/config"
 if printf 'n\n' | HOME="$MOCK_HOME_17b" XDG_CONFIG_HOME="$MOCK_HOME_17b/.config" "$HELPER" help >/dev/null 2>&1; then
     fail "refusing config reset should exit non-zero"
 else
