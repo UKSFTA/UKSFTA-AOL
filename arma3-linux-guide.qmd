@@ -503,6 +503,26 @@ STEAM_COMPAT_INSTALL_PATH=""
 STEAM_COMPAT_LIBRARY_PATHS=""
 ```
 
+### Host Documents and Downloads
+
+Arma 3 stores profiles, loadouts, missions, and screenshots in `Documents\Arma 3`. By default this lives inside the Wine prefix. If the prefix is deleted or reset, that data is lost. Arma 3 has no Steam Cloud, so the prefix is the only copy.
+
+`bindhost` moves Arma's Documents and Downloads to your real host folders. It edits the prefix registry so Wine reads `Z:\home\<user>\Documents` and `Z:\home\<user>\Downloads`, which map to your actual home directory. Your profiles then survive prefix deletion, and the HTML modlist importer reads your real Downloads folder.
+
+Run it once after setup:
+
+``` bash
+./Arma3Helper.sh bindhost
+```
+
+To revert to the prefix-local folders:
+
+``` bash
+./Arma3Helper.sh unbindhost
+```
+
+The config option `BIND_HOST_DIRS` records the state. The script sets it automatically; do not edit it by hand. `prefix reset --full` re-applies the binding after recreating the prefix.
+
 ## Checking Dependencies
 
 After configuring the script, run the dependency check:
@@ -520,12 +540,23 @@ The check also verifies that the **Proton BattlEye Runtime** is installed in one
 The following commands are available. Run `./Arma3Helper.sh help` to see this list at any time.
 
 - **`./Arma3Helper.sh`**: Launch TeamSpeak 3 (start Arma first)
-- **`./Arma3Helper.sh install <exe>`**: Install TeamSpeak 3 into the prefix
+- **`./Arma3Helper.sh install`**: Download and install the latest TeamSpeak 3 silently
+- **`./Arma3Helper.sh install <exe>`**: Install TeamSpeak 3 from a manual installer file
 - **`./Arma3Helper.sh winetricks Arma`**: Install recommended DLLs
 - **`./Arma3Helper.sh winetricks <args>`**: Run any winetricks command
 - **`./Arma3Helper.sh winecfg`**: Open Wine configuration
-- **`./Arma3Helper.sh checkdeps`**: Check required packages
+- **`./Arma3Helper.sh checkdeps`**: Check required packages, BattlEye runtime, and radio plugins
 - **`./Arma3Helper.sh listproton`**: List available Proton versions
+- **`./Arma3Helper.sh listmods`**: List installed and loaded mods
+- **`./Arma3Helper.sh acremod`**: Install the ACRE2 plugin manually
+- **`./Arma3Helper.sh tfarmod`**: Install the TFAR plugin
+- **`./Arma3Helper.sh acrecheck`**: Diagnose why radios cannot find the game
+- **`./Arma3Helper.sh verifyradio`**: Verify the full radio chain for ACRE2 and TFAR
+- **`./Arma3Helper.sh bindhost`**: Point Arma's Documents and Downloads at your real host folders
+- **`./Arma3Helper.sh unbindhost`**: Revert Documents and Downloads to the prefix
+- **`./Arma3Helper.sh prefix doctor`**: Diagnose the prefix (read-only)
+- **`./Arma3Helper.sh prefix reset`**: Repair the prefix in place
+- **`./Arma3Helper.sh prefix reset --full`**: Recreate the prefix with backup
 - **`./Arma3Helper.sh debug`**: Print diagnostic information
 - **`./Arma3Helper.sh update`**: Update script from GitHub (keeps a backup at `Arma3Helper.sh.bak-arma3helper`)
 - **`./Arma3Helper.sh createconfig`**: Create external config file
@@ -668,9 +699,10 @@ Once TeamSpeak 3 is running, set the following options before connecting to any 
 
 A built-in TeamSpeak 3 plugin called **Gamepad and Joystick Hotkey Support** causes TeamSpeak 3 to crash when a gamepad or joystick is connected. TeamSpeak has not fixed this bug. The plugin is deleted automatically every time you launch TeamSpeak 3 with Arma3Helper, so no manual action is needed.
 
-If you experience crashes after a few seconds of TeamSpeak 3 running, this plugin was almost certainly the cause. If you run TeamSpeak 3 through Steam directly instead of through Arma3Helper, delete these files from the prefix's plugins folder:
+If you experience crashes after a few seconds of TeamSpeak 3 running, this plugin was almost certainly the cause. If you run TeamSpeak 3 through Steam directly instead of through Arma3Helper, delete these files from the prefix's plugins folders:
 
 ``` bash
+rm -rf "$COMPAT_DATA_PATH/pfx/drive_c/Program Files/TeamSpeak 3 Client/plugins/gamepad_joystick"*
 rm -rf "$COMPAT_DATA_PATH/pfx/drive_c/users/steamuser/AppData/Roaming/TS3Client/plugins/gamepad_joystick"*
 ```
 
@@ -941,11 +973,23 @@ If TeamSpeak 3 cannot load the ACRE2 plugin, check the following:
 - Both Arma 3 and TeamSpeak 3 are running as the same user.
 - The plugin files exist in the TeamSpeak plugins directory (Chapter 8).
 
-Run the manual plugin installation described in Chapter 8 if the automatic process has failed.
+If the automatic process has failed, install the plugin manually:
+
+``` bash
+./Arma3Helper.sh acremod
+```
+
+Then confirm the plugin is listed in TeamSpeak's addons menu.
 
 ## TFAR Plugin Missing from TeamSpeak
 
-If the TFAR plugin does not appear in TeamSpeak 3 after copying the files, verify the following:
+If the TFAR plugin does not appear in TeamSpeak 3, install it with the script:
+
+``` bash
+./Arma3Helper.sh tfarmod
+```
+
+Then verify the following:
 
 - Both `TFAR_win32.dll` and `TFAR_win64.dll` are present in the plugins folder.
 - The `radio-sounds` folder is also present.
@@ -1152,7 +1196,10 @@ Enable it by adding `MANGOHUD=1 %command%` to the Steam launch options.
 # Annex A – Glossary
 
 - **ACRE2**: Advanced Combat Radio Environment 2. An Arma 3 mod simulating military radio communications.
+- **acrecheck**: An Arma3Helper command that diagnoses why radio plugins cannot find the game.
+- **acremod**: An Arma3Helper command that installs the ACRE2 plugin manually.
 - **AppData**: A Windows user-specific folder for application data. Located at `C:\Users\<name>\AppData\`.
+- **bindhost**: An Arma3Helper command that points Arma's Documents and Downloads at the real host folders.
 - **CBA_A3**: Community Base Addons for Arma 3. A library of functions and systems used by many mods.
 - **compatdata**: The directory containing a game's Wine prefix. Named after 'compatibility data'.
 - **Esync/Fsync**: Optimisations that reduce CPU overhead in Wine by replacing kernel synchronisation primitives with user-space equivalents.
@@ -1162,6 +1209,8 @@ Enable it by adding `MANGOHUD=1 %command%` to the Steam launch options.
 - **protontricks**: A wrapper around winetricks that automatically sets the correct Wine prefix for a Steam game.
 - **Steam App ID**: A unique number identifying a game on Steam. Arma 3's App ID is 107410.
 - **TFAR**: Task Force Arrowhead Radio. An Arma 3 mod providing radio simulation via TeamSpeak 3.
+- **tfarmod**: An Arma3Helper command that installs the TFAR plugin manually.
+- **verifyradio**: An Arma3Helper command that checks the full radio chain: Workshop mod downloaded, mod loaded, plugin installed.
 - **Wine**: An open-source compatibility layer that translates Windows API calls to Linux.
 - **Wine prefix**: An isolated Windows environment created by Wine. Each game typically has its own prefix.
 - **winetricks**: A script that automates the installation of Windows components into a Wine prefix.
