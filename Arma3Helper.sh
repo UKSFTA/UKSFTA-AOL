@@ -2310,6 +2310,7 @@ _bind_host_dirs() {
     sleep 1
 
     local key="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders"
+    local legacy_key="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders"
     local guid_docs="{FDD39AD0-238F-46AF-ADB4-6C85480369C7}"
     local guid_dl="{374DE290-123F-4565-9164-39C4925E467B}"
 
@@ -2317,6 +2318,14 @@ _bind_host_dirs() {
     "$PROTONEXEC" run reg add "$key" /v Downloads /t REG_SZ /d "$host_dl" /f >/dev/null 2>&1
     "$PROTONEXEC" run reg add "$key" /v "$guid_docs" /t REG_SZ /d "$host_docs" /f >/dev/null 2>&1
     "$PROTONEXEC" run reg add "$key" /v "$guid_dl" /t REG_SZ /d "$host_dl" /f >/dev/null 2>&1
+    # The legacy Shell Folders key is what SHGetFolderPath(CSIDL_PERSONAL)
+    # reads on Windows Vista and newer. Arma 3 saves its profile through
+    # that call, so the legacy key must point at the host folder too.
+    # Without it, the game reads the profile list from the host (known
+    # folder API) but writes saves to the prefix (legacy API), which then
+    # fail or land in the wrong place.
+    "$PROTONEXEC" run reg add "$legacy_key" /v Personal /t REG_SZ /d "$host_docs" /f >/dev/null 2>&1
+    "$PROTONEXEC" run reg add "$legacy_key" /v Downloads /t REG_SZ /d "$host_dl" /f >/dev/null 2>&1
 
     # Stop Wine again so the registry file is flushed cleanly.
     "$PROTONEXEC" run wineserver -k 2>/dev/null
@@ -2357,6 +2366,7 @@ _unbind_host_dirs() {
     sleep 1
 
     local key="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders"
+    local legacy_key="HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders"
     local guid_docs="{FDD39AD0-238F-46AF-ADB4-6C85480369C7}"
     local guid_dl="{374DE290-123F-4565-9164-39C4925E467B}"
 
@@ -2364,6 +2374,10 @@ _unbind_host_dirs() {
     "$PROTONEXEC" run reg add "$key" /v Downloads /t REG_EXPAND_SZ /d "%USERPROFILE%\\\\Downloads" /f >/dev/null 2>&1
     "$PROTONEXEC" run reg delete "$key" /v "$guid_docs" /f >/dev/null 2>&1
     "$PROTONEXEC" run reg delete "$key" /v "$guid_dl" /f >/dev/null 2>&1
+    # Revert the legacy Shell Folders key alongside the User Shell Folders
+    # key, so SHGetFolderPath and SHGetKnownFolderPath agree again.
+    "$PROTONEXEC" run reg add "$legacy_key" /v Personal /t REG_EXPAND_SZ /d "%USERPROFILE%\\\\Documents" /f >/dev/null 2>&1
+    "$PROTONEXEC" run reg add "$legacy_key" /v Downloads /t REG_EXPAND_SZ /d "%USERPROFILE%\\\\Downloads" /f >/dev/null 2>&1
 
     "$PROTONEXEC" run wineserver -k 2>/dev/null
 
