@@ -1492,6 +1492,23 @@ _STEAM_ROOT="$(_find_steam_root)"
 # -----------------------------------------------------------------------------
 # Resolve COMPAT_DATA_PATH (Arma's Wine prefix)
 # -----------------------------------------------------------------------------
+# _is_info_command <cmd>
+#   Return 0 if the command is informational or self-help: it must work on
+#   a fresh machine with no Steam, no Proton, and no prefix. These commands
+#   should not emit detection warnings that assume an installed game.
+_is_info_command() {
+    case "$1" in
+        help|""|checkdeps|listproton|debug|update|createconfig|listmods| \
+        tfarmod|acremod|acrecheck|verifyradio|winetricks|winecfg)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# -----------------------------------------------------------------------------
 if [[ -z "$COMPAT_DATA_PATH" ]]; then
     # Auto-detect by searching all configured Steam libraries
     _ARMA_LIB="$(_find_arma_library)"
@@ -1501,10 +1518,12 @@ if [[ -z "$COMPAT_DATA_PATH" ]]; then
     else
         # Fallback to the traditional default location
         COMPAT_DATA_PATH="$HOME/.steam/steam/steamapps/compatdata/107410"
-        echo -e "\e[33mWarning\e[0m: Could not auto-detect Arma 3 library."
-        echo "Falling back to: $COMPAT_DATA_PATH"
-        echo "If this is wrong, set COMPAT_DATA_PATH in the config file."
-        echo "Run './Arma3Helper.sh createconfig' to create the config file."
+        if ! _is_info_command "$1"; then
+            echo -e "\e[33mWarning\e[0m: Could not auto-detect Arma 3 library."
+            echo "Falling back to: $COMPAT_DATA_PATH"
+            echo "If this is wrong, set COMPAT_DATA_PATH in the config file."
+            echo "Run './Arma3Helper.sh createconfig' to create the config file."
+        fi
     fi
 fi
 
@@ -1536,7 +1555,7 @@ if [[ -z "$STEAM_COMPAT_INSTALL_PATH" && -z "$STEAM_COMPAT_LIBRARY_PATHS" ]]; th
     if [[ -d "$_ARMA_LIBRARY/common/Arma 3" ]]; then
         export STEAM_COMPAT_INSTALL_PATH="$_ARMA_LIBRARY/common/Arma 3"
         export STEAM_COMPAT_LIBRARY_PATHS="$_ARMA_LIBRARY"
-    else
+    elif ! _is_info_command "$1"; then
         echo -e "\e[33mWarning\e[0m: Could not locate Arma's Steam library from COMPAT_DATA_PATH."
         echo "Without STEAM_COMPAT_INSTALL_PATH and STEAM_COMPAT_LIBRARY_PATHS, newer Proton versions remove the prefix's S: drive, which breaks server signature checks. Export both in your config file."
     fi
@@ -1805,7 +1824,11 @@ else
 fi
 
 # Bail out early if we could not find any Proton executable.
-if [[ -z "$PROTONEXEC" || ! -x "$PROTONEXEC" ]]; then
+# Informational and self-help commands must still work without Proton:
+# a new user without Steam needs help, checkdeps, and listproton more
+# than anything. Only commands that actually run Proton or need a
+# working prefix require it.
+if ! _is_info_command "$1" && { [[ -z "$PROTONEXEC" || ! -x "$PROTONEXEC" ]]; }; then
     echo "Error: No Proton executable found."
     if [[ -n "$PROTON_CUSTOM_VERSION" ]]; then
         echo "  Custom version:  $PROTON_CUSTOM_VERSION"

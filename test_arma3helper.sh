@@ -963,7 +963,9 @@ fi
 # ===========================================================================
 echo "── 14. Proton guard: rejects non-executable paths ──"
 # ===========================================================================
-# Test that the script errors cleanly when custom proton doesn't exist
+# Test that the script errors cleanly when custom proton doesn't exist.
+# The guard fires on Proton-dependent commands (install runs the installer
+# via Proton); informational commands like debug must still work.
 MOCK_HOME_11=$(mktemp -d)
 mkdir -p "$MOCK_HOME_11/.config/arma3helper"
 cat > "$MOCK_HOME_11/.config/arma3helper/config" << EOFCFG
@@ -974,12 +976,19 @@ PROTON_CUSTOM_VERSION="Proton-FakeVersion99"
 ESYNC=true
 FSYNC=true
 EOFCFG
-_output_11=$(HOME="$MOCK_HOME_11" XDG_CONFIG_HOME="$MOCK_HOME_11/.config" "$HELPER" debug 2>&1 || true)
+_output_11=$(HOME="$MOCK_HOME_11" XDG_CONFIG_HOME="$MOCK_HOME_11/.config" "$HELPER" install 2>&1 || true)
 if echo "$_output_11" | grep -q "No Proton executable found" && \
    echo "$_output_11" | grep -q "Proton-FakeVersion99"; then
     pass "Bad custom version name -> clean error with version shown"
 else
     fail "Bad custom version name -> no error or wrong message"
+fi
+# debug must NOT fail on missing proton (informational command)
+_debug_out=$(HOME="$MOCK_HOME_11" XDG_CONFIG_HOME="$MOCK_HOME_11/.config" "$HELPER" debug 2>&1 || true)
+if ! echo "$_debug_out" | grep -q "No Proton executable found"; then
+    pass "debug still works without Proton (informational command)"
+else
+    fail "debug blocked by missing Proton"
 fi
 rm -rf "$MOCK_HOME_11"
 
@@ -994,7 +1003,7 @@ PROTON_CUSTOM_VERSION="/tmp/totally_fake_proton"
 ESYNC=true
 FSYNC=true
 EOFCFG
-_output_11b=$(HOME="$MOCK_HOME_11b" XDG_CONFIG_HOME="$MOCK_HOME_11b/.config" "$HELPER" debug 2>&1 || true)
+_output_11b=$(HOME="$MOCK_HOME_11b" XDG_CONFIG_HOME="$MOCK_HOME_11b/.config" "$HELPER" install 2>&1 || true)
 if echo "$_output_11b" | grep -q "No Proton executable found" && \
    echo "$_output_11b" | grep -q "/tmp/totally_fake_proton"; then
     pass "Bad absolute path -> clean error with path shown"
