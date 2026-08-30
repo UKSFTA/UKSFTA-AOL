@@ -534,6 +534,7 @@ eval "$_plugin_fn"
 
 # Mock pgrep so _get_arma_cmdline always falls back to the RPT path.
 # Without this, a running Arma process on the host would bypass the mock RPT.
+# shellcheck disable=SC2329
 pgrep() { echo ""; }
 
 MOCK_HOME="$TMPDIR_TEST/mods-home"
@@ -634,6 +635,7 @@ _plugin_fn="$(sed -n '/^_parse_loaded_mods() {/,/^}/p' "$HELPER")"
 eval "$_plugin_fn"
 
 # Mock pgrep so _get_arma_cmdline always falls back to the RPT path.
+# shellcheck disable=SC2329
 pgrep() { echo ""; }
 
 MOCK_HOME="$TMPDIR_TEST/chain-home"
