@@ -507,21 +507,27 @@ STEAM_COMPAT_LIBRARY_PATHS=""
 
 Arma 3 stores profiles, loadouts, missions, and screenshots in `Documents\Arma 3`. By default this lives inside the Wine prefix. If the prefix is deleted or reset, that data is lost. Arma 3 has no Steam Cloud, so the prefix is the only copy.
 
-`bindhost` moves Arma's Documents and Downloads to your real host folders. It edits the prefix registry so Wine reads `Z:\home\<user>\Documents` and `Z:\home\<user>\Downloads`, which map to your actual home directory. Your profiles then survive prefix deletion, and the HTML modlist importer reads your real Downloads folder.
+#### Synchronising Profiles (recommended)
 
-Run it once after setup:
-
-``` bash
-./Arma3Helper.sh bindhost
-```
-
-To revert to the prefix-local folders:
+`syncprofiles` copies the profile folders between the prefix and your real host Documents. Run it after an Arma session to back up your progress, and after creating a fresh prefix to restore it.
 
 ``` bash
-./Arma3Helper.sh unbindhost
+# After an Arma session: copy prefix profiles to the host
+./Arma3Helper.sh syncprofiles backup
+
+# After a fresh prefix: copy host profiles back in
+./Arma3Helper.sh syncprofiles restore
 ```
 
-The config option `BIND_HOST_DIRS` records the state. The script sets it automatically; do not edit it by hand. `prefix reset --full` re-applies the binding after recreating the prefix.
+The sync merges both sides. It never deletes files, because each side can hold profiles the other lacks.
+
+#### Why Not Point Directly at the Host Folders
+
+Arma 3 normally reads its Documents from the registry. Wine resolves that to the prefix's `C:` drive. It is possible to redirect the registry to the host folders through `Z:` paths. However, Arma 3 runs inside Steam Linux Runtime 4 (pressure-vessel), which bind-mounts the host home directory as a separate filesystem inside the container. Wine cannot write through `Z:` into that bind mount, so the game reports "Problem occurred when saving profile data" and loses loadouts. Valve documents this limitation in the steam-runtime issue tracker.
+
+The `bindhost` and `unbindhost` commands still exist for systems where this works, but the reliable path on Steam Linux Runtime 4 is `syncprofiles`.
+
+The config option `BIND_HOST_DIRS` records the binding state. The script sets it automatically; do not edit it by hand.
 
 ## Checking Dependencies
 
@@ -552,7 +558,9 @@ The following commands are available. Run `./Arma3Helper.sh help` to see this li
 - **`./Arma3Helper.sh tfarmod`**: Install the TFAR plugin
 - **`./Arma3Helper.sh acrecheck`**: Diagnose why radios cannot find the game
 - **`./Arma3Helper.sh verifyradio`**: Verify the full radio chain for ACRE2 and TFAR
-- **`./Arma3Helper.sh bindhost`**: Point Arma's Documents and Downloads at your real host folders
+- **`./Arma3Helper.sh syncprofiles backup`**: Copy prefix profiles to the host (run after each Arma session)
+- **`./Arma3Helper.sh syncprofiles restore`**: Copy host profiles into the prefix (run after a fresh prefix)
+- **`./Arma3Helper.sh bindhost`**: Point Arma's Documents and Downloads at your real host folders (not reliable on Steam Linux Runtime 4)
 - **`./Arma3Helper.sh unbindhost`**: Revert Documents and Downloads to the prefix
 - **`./Arma3Helper.sh prefix doctor`**: Diagnose the prefix (read-only)
 - **`./Arma3Helper.sh prefix reset`**: Repair the prefix in place
@@ -1199,7 +1207,8 @@ Enable it by adding `MANGOHUD=1 %command%` to the Steam launch options.
 - **acrecheck**: An Arma3Helper command that diagnoses why radio plugins cannot find the game.
 - **acremod**: An Arma3Helper command that installs the ACRE2 plugin manually.
 - **AppData**: A Windows user-specific folder for application data. Located at `C:\Users\<name>\AppData\`.
-- **bindhost**: An Arma3Helper command that points Arma's Documents and Downloads at the real host folders.
+- **bindhost**: An Arma3Helper command that points Arma's Documents and Downloads at the real host folders. Not reliable on Steam Linux Runtime 4.
+- **syncprofiles**: An Arma3Helper command that merges the prefix and host profile folders in either direction.
 - **CBA_A3**: Community Base Addons for Arma 3. A library of functions and systems used by many mods.
 - **compatdata**: The directory containing a game's Wine prefix. Named after 'compatibility data'.
 - **Esync/Fsync**: Optimisations that reduce CPU overhead in Wine by replacing kernel synchronisation primitives with user-space equivalents.
@@ -1240,8 +1249,8 @@ chmod +x ~/Arma3Helper.sh
 # 5. Install Windows components (after first Arma launch)
 ./Arma3Helper.sh winetricks Arma
 
-# 6. Point Arma's Documents and Downloads at your real host folders
-./Arma3Helper.sh bindhost
+# 6. Back up profiles after the first Arma session
+./Arma3Helper.sh syncprofiles backup
 
 # 7. Verify the radio mods are fully installed and loaded
 ./Arma3Helper.sh verifyradio
@@ -1252,6 +1261,9 @@ chmod +x ~/Arma3Helper.sh
 ``` bash
 # Start Arma 3 from Steam, wait for main menu, then:
 ./Arma3Helper.sh
+
+# After each Arma session, keep the host copy of your profiles current:
+./Arma3Helper.sh syncprofiles backup
 ```
 
 ## Radio Plugin Commands

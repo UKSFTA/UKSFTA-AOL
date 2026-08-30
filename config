@@ -95,6 +95,9 @@ STEAM_COMPAT_LIBRARY_PATHS=""
 # BIND HOST DIRECTORIES (set by the script)
 # -----------------------------------------------------------------------------
 # Set to true by './Arma3Helper.sh bindhost'. Do not edit by hand.
+# Not reliable on Steam Linux Runtime 4: Wine cannot write through Z: into
+# the bind-mounted host folders. Use './Arma3Helper.sh syncprofiles' for
+# reliable profile persistence.
 # When true, Arma 3 reads and writes profiles on the real host Documents
 # and Downloads folders instead of the prefix-local ones. 'prefix reset
 # --full' re-applies the binding automatically after recreating the prefix.
