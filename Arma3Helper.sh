@@ -1617,7 +1617,7 @@ _find_tfar_plugin_source() {
         local ws
         while IFS= read -r ws; do
             [[ -z "$ws" ]] && continue
-            local plugin_zip="$ws/task_force_radio.ts3_plugin"
+            local plugin_zip="$ws/teamspeak/task_force_radio.ts3_plugin"
             local plugin_dir="$ws/TeamSpeak 3 Client"
             if [[ -f "$plugin_zip" ]]; then
                 _TFAR_SRC_ZIP="$plugin_zip"
