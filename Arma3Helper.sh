@@ -533,6 +533,73 @@ _install_self() {
     return 0
 }
 
+# _update_script <target>
+#   Download the latest script and install it at <target>. When <target> is
+#   writable, update it in place and keep a backup. When it is not writable
+#   (a root-owned system install), never write to the current directory:
+#   update the user bin copy when one exists, otherwise leave a temp file
+#   and point the user at the installer.
+_update_script() {
+    local target="$1"
+    local url="https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh"
+
+    if [[ -w "$target" ]]; then
+        local tmp="$target.tmp"
+        if curl -fo "$tmp" "$url"; then
+            chmod +x "$tmp"
+            cp -f "$target" "$target.bak-arma3helper"
+            mv -f "$tmp" "$target"
+            echo ""
+            echo "Update complete. Run 'Arma3Helper debug' to verify."
+            echo "Previous version kept at: $target.bak-arma3helper"
+        else
+            rm -f "$tmp"
+            echo ""
+            echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
+            return 1
+        fi
+        return 0
+    fi
+
+    echo "Cannot write to '$target' (permission denied)."
+    local userbin="${HOME:-}/.local/bin/Arma3Helper"
+    if [[ -n "${HOME:-}" && -w "$userbin" ]]; then
+        local tmp="$userbin.tmp"
+        if curl -fo "$tmp" "$url"; then
+            chmod +x "$tmp"
+            cp -f "$userbin" "$userbin.bak-arma3helper"
+            mv -f "$tmp" "$userbin"
+            echo ""
+            echo "Updated your user install instead: $userbin"
+            echo "Remove the old copy:  sudo rm '$target'"
+            echo "Previous version kept at: $userbin.bak-arma3helper"
+        else
+            rm -f "$tmp"
+            echo ""
+            echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
+            return 1
+        fi
+        return 0
+    fi
+
+    local tmp
+    tmp="$(mktemp "${TMPDIR:-/tmp}/arma3helper.XXXXXX")"
+    if curl -fo "$tmp" "$url"; then
+        chmod +x "$tmp"
+        echo ""
+        echo "This install is in a system location and cannot update itself."
+        echo "Install the new version to your user bin:"
+        echo "  install -m 0755 '$tmp' \"\$HOME/.local/bin/Arma3Helper\""
+        echo "Or run the installer:  ./install.sh"
+    else
+        rm -f "$tmp"
+        echo ""
+        echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
+        return 1
+    fi
+    return 0
+}
+
 # _ensure_ts3_installed
 #   Offer to auto-install TeamSpeak 3 when it is missing at launch time.
 #   Returns 1 if the user declines or the install fails.
@@ -3238,43 +3305,7 @@ case "$1" in
     echo ""
     _confirmation "Proceed with update?"
     _checkinstall curl
-    if [[ -w "$0" ]]; then
-        # Can write to the script in place. Download to a temp file first,
-        # then move it into place atomically. This protects the running
-        # script from truncation if the download is interrupted.
-        _tmpscript="$0.tmp"
-        if curl -fo "$_tmpscript" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh; then
-            chmod +x "$_tmpscript"
-            cp -f "$0" "$0.bak-arma3helper"
-            mv -f "$_tmpscript" "$0"
-            echo ""
-            echo "Update complete. Run './Arma3Helper.sh debug' to verify."
-            echo "Previous version kept at: $0.bak-arma3helper"
-        else
-            rm -f "$_tmpscript"
-            echo ""
-            echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
-            exit 1
-        fi
-    else
-        # Cannot write to $0 (e.g. installed in /usr/bin). Download to the
-        # current working directory, which the user owns. Never write to
-        # dirname "$0" — that is the same permission-denied directory.
-        _dest="$PWD/Arma3Helper.sh"
-        echo "Cannot write to '$0' (permission denied)."
-        echo "Downloading to: $_dest"
-        if curl -fo "$_dest" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh; then
-            chmod +x "$_dest"
-            echo ""
-            echo "Update complete. Replace the installed script manually:"
-            echo "  sudo cp $_dest $0"
-            echo "Then run: ./Arma3Helper.sh debug"
-        else
-            echo ""
-            echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
-            exit 1
-        fi
-    fi
+    _update_script "$0"
     ;;
 
 # -------------------------------------------------------------------------

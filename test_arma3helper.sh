@@ -1317,6 +1317,75 @@ else
     fail "help all missing detail"
 fi
 
+# ===========================================================================
+echo "── 21. Update fallback ──"
+# ===========================================================================
+# _update_script updates a writable target in place, prefers the user bin
+# when the target is not writable, and never writes to the current directory.
+eval "$(sed -n '/^_update_script() {/,/^}/p' "$HELPER")"
+
+# A fake curl earlier on PATH that emulates `curl -fo FILE URL`.
+UPD_BIN="$TMPDIR_TEST/upd-bin"
+mkdir -p "$UPD_BIN"
+cat >"$UPD_BIN/curl" <<'EOF'
+#!/bin/sh
+out=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+    -fo)
+        out="$2"
+        shift 2
+        ;;
+    *)
+        shift
+        ;;
+    esac
+done
+printf '#!/bin/sh\n_SCRIPTVER="9.9.9"\n' >"$out"
+EOF
+chmod 755 "$UPD_BIN/curl"
+
+# A: writable target updates in place, with a backup of the old content.
+UPD_DIR="$TMPDIR_TEST/upd"
+mkdir -p "$UPD_DIR"
+printf '#!/bin/sh\n_SCRIPTVER="1.0.0"\n' >"$UPD_DIR/Arma3Helper"
+chmod 755 "$UPD_DIR/Arma3Helper"
+PATH="$UPD_BIN:$PATH" _update_script "$UPD_DIR/Arma3Helper" >/dev/null 2>&1
+if grep -q '9.9.9' "$UPD_DIR/Arma3Helper" &&
+    grep -q '1.0.0' "$UPD_DIR/Arma3Helper.bak-arma3helper"; then
+    pass "update replaces a writable target and keeps a backup"
+else
+    fail "update did not replace a writable target"
+fi
+
+# B: non-writable target updates the user bin copy instead.
+UPD_RO="$TMPDIR_TEST/upd-ro"
+UPD_HOME="$TMPDIR_TEST/upd-home"
+mkdir -p "$UPD_RO" "$UPD_HOME/.local/bin"
+printf '#!/bin/sh\n_SCRIPTVER="1.0.0"\n' >"$UPD_RO/Arma3Helper"
+chmod 444 "$UPD_RO/Arma3Helper"
+printf '#!/bin/sh\n_SCRIPTVER="1.0.0"\n' >"$UPD_HOME/.local/bin/Arma3Helper"
+chmod 755 "$UPD_HOME/.local/bin/Arma3Helper"
+PATH="$UPD_BIN:$PATH" HOME="$UPD_HOME" _update_script "$UPD_RO/Arma3Helper" >/dev/null 2>&1
+if grep -q '9.9.9' "$UPD_HOME/.local/bin/Arma3Helper" &&
+    grep -q '1.0.0' "$UPD_RO/Arma3Helper"; then
+    pass "update passes a non-writable target to the user bin"
+else
+    fail "update did not use the user bin"
+fi
+
+# C: non-writable target, no user bin: never writes to the working directory.
+UPD_HOME2="$TMPDIR_TEST/upd-home2"
+UPD_CWD="$TMPDIR_TEST/upd-cwd"
+mkdir -p "$UPD_HOME2" "$UPD_CWD"
+out="$(cd "$UPD_CWD" && PATH="$UPD_BIN:$PATH" HOME="$UPD_HOME2" _update_script "$UPD_RO/Arma3Helper" 2>&1)"
+if echo "$out" | grep -q "install.sh" && [ ! -e "$UPD_CWD/Arma3Helper.sh" ]; then
+    pass "update points at the installer and writes nothing to the working directory"
+else
+    fail "update wrote into the working directory (got: $out)"
+fi
+rm -rf "$UPD_DIR" "$UPD_RO" "$UPD_HOME" "$UPD_HOME2" "$UPD_CWD" "$UPD_BIN"
+
 echo ""
 # ===========================================================================
 TOTAL=$((PASS + FAIL + SKIP))
