@@ -15,6 +15,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `installself` command: installs the current script copy into a user bin
   directory.
 
+### Changed
+
+- `help` is now a compact, grouped command list that fits one screen.
+  Detail moved behind `help <command>`, and `help all` shows every command
+  in full, through a pager when interactive. `-h` and `--help` are
+  aliases, and an unknown command now names the error and exits non-zero.
+- Detection messages no longer print for the `help` command.
+
 ### Fixed
 
 - Repointed all `master` branch references to `main` after the default
