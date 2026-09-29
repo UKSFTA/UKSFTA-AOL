@@ -1242,6 +1242,41 @@ fi
 rm -rf "$TMPDIR_TEST/sync-home" "$TMPDIR_TEST/sync-compat"
 unset COMPAT_DATA_PATH HOME
 
+# ===========================================================================
+echo "── 19. Self-install (installself and install.sh) ──"
+# ===========================================================================
+# _install_self copies the script into a user bin directory with mode 0755.
+_plugin_fn="$(sed -n '/^_install_self() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
+
+SI_DIR="$TMPDIR_TEST/bin"
+_si_out="$(_install_self "$SI_DIR" "$HELPER" 2>&1)"
+if echo "$_si_out" | grep -q "Installed" &&
+    [[ -x "$SI_DIR/Arma3Helper" ]] &&
+    grep -q '^_SCRIPTVER=' "$SI_DIR/Arma3Helper"; then
+    pass "installself installs an executable copy"
+else
+    fail "installself failed (got: $_si_out)"
+fi
+
+_si_out="$(_install_self "$SI_DIR" "$SI_DIR/Arma3Helper" 2>&1)"
+if echo "$_si_out" | grep -q "already installed"; then
+    pass "installself is idempotent when already installed"
+else
+    fail "installself not idempotent (got: $_si_out)"
+fi
+
+# install.sh --local installs the checkout copy next to it.
+SI_DIR2="$TMPDIR_TEST/sibin"
+if sh "$SCRIPT_DIR/install.sh" --local --dir "$SI_DIR2" >/dev/null 2>&1 &&
+    [[ -x "$SI_DIR2/Arma3Helper" ]] &&
+    grep -q '^_SCRIPTVER=' "$SI_DIR2/Arma3Helper"; then
+    pass "install.sh --local installs the checkout copy"
+else
+    fail "install.sh --local failed"
+fi
+rm -rf "$SI_DIR" "$SI_DIR2"
+
 echo ""
 # ===========================================================================
 TOTAL=$((PASS + FAIL + SKIP))

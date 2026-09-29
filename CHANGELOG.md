@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `install.sh`: installs the script to `~/.local/bin/Arma3Helper` with mode
+  0755, so it runs as a command with no manual `chmod`. Supports `--dir`,
+  `--system`, `--ref`, and `--local`.
+- `installself` command: installs the current script copy into a user bin
+  directory.
+
 ### Fixed
 
 - Repointed all `master` branch references to `main` after the default

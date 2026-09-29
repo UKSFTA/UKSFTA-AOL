@@ -495,6 +495,44 @@ _checkpath() {
     fi
 }
 
+# _install_self <target_dir> [source]
+#   Install this script into a user bin directory so it runs as a command.
+#   Defaults to ~/.local/bin. The file is installed with mode 0755, so no
+#   manual chmod is needed. Re-run to update.
+_install_self() {
+    local target_dir="${1:-$HOME/.local/bin}"
+    local source="${2:-$0}"
+    local target="$target_dir/Arma3Helper"
+
+    source="$(readlink -f "$source" 2>/dev/null || printf '%s' "$source")"
+    if [[ "$source" == "$target" ]]; then
+        echo "Arma3Helper is already installed at $target"
+        return 0
+    fi
+
+    if ! mkdir -p "$target_dir"; then
+        echo -e "\e[31mError\e[0m: Cannot create $target_dir."
+        return 1
+    fi
+
+    if command -v install >/dev/null 2>&1; then
+        install -m 0755 "$source" "$target" || return 1
+    else
+        cp -f "$source" "$target" && chmod 0755 "$target" || return 1
+    fi
+
+    echo -e "\e[32mInstalled\e[0m: $target"
+    case ":$PATH:" in
+    *":$target_dir:"*) ;;
+    *)
+        echo "Note: $target_dir is not on your PATH."
+        echo "Add it with: export PATH=\"$target_dir:\$PATH\""
+        ;;
+    esac
+    echo "Run: Arma3Helper help"
+    return 0
+}
+
 # _ensure_ts3_installed
 #   Offer to auto-install TeamSpeak 3 when it is missing at launch time.
 #   Returns 1 if the user declines or the install fails.
@@ -3183,6 +3221,15 @@ case "$1" in
     ;;
 
 # -------------------------------------------------------------------------
+"installself")
+    # -------------------------------------------------------------------------
+    # Install this script as a command in a user bin directory.
+    #   installself         – install to ~/.local/bin/Arma3Helper
+    #   installself <dir>   – install to <dir>/Arma3Helper
+    _install_self "$2"
+    ;;
+
+# -------------------------------------------------------------------------
 "help" | *)
     # -------------------------------------------------------------------------
     # Print usage information.
@@ -3199,6 +3246,10 @@ case "$1" in
     echo "     Install TeamSpeak 3 (Windows version) into Arma's prefix."
     echo "     With no path, downloads and verifies the latest installer"
     echo "     automatically. Installs silently for All Users."
+    echo ""
+    echo " ./Arma3Helper.sh installself [dir]"
+    echo "     Install the script as the 'Arma3Helper' command in"
+    echo "     ~/.local/bin (or the directory given). Re-run to update."
     echo ""
     echo " ./Arma3Helper.sh winetricks Arma"
     echo "     Install recommended DLLs for Arma 3. Run this once before"
