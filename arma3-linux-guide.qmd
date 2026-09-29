@@ -1038,6 +1038,25 @@ If you see `Pipe error: Read CreateFileA WinErrCode: 2` in Arma's `.rpt` log eve
 
 No Steam launch options are needed. The script does not modify Arma's launch options.
 
+## TFAR Reports Not Connected to Game
+
+TFAR's TeamSpeak plugin shows `Connected to Game: No` when it cannot reach the TFAR extension in Arma 3. TFAR exchanges data through Windows shared memory in the current session, so both programs must run on the same Wine server and the game must be running.
+
+Check in this order:
+
+1.  Launch Arma 3 first, with the TFAR mod active, and wait for the main menu.
+2.  Start TeamSpeak 3 with `./Arma3Helper.sh`. Do not start it any other way.
+3.  In TeamSpeak, open **Tools** -> **Options** -> **Addons** and confirm the TFAR plugin is enabled.
+4.  Confirm TFAR is in the loaded mod list:
+
+    ``` bash
+    ./Arma3Helper.sh listmods
+    ```
+
+If the status stays `No`, run `./Arma3Helper.sh verifyradio` to confirm the plugin is installed and the mod is loaded.
+
+File permissions are not the cause. Wine loads Windows plugin DLLs by reading them and does not use the Linux executable bit. A plugin DLL needs read permission only.
+
 ## Script Cannot Find TeamSpeak 3
 
 If the script reports that TeamSpeak 3 is not found, run the debug command and check the reported path:

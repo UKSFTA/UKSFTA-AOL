@@ -1668,21 +1668,26 @@ _install_tfar_plugin() {
         _TFAR_SRC_DIR="$tmpdir"
     fi
 
-    local copied=0
-    # shellcheck disable=SC2012
-    for f in "$_TFAR_SRC_DIR"/plugins/TFAR_*.dll "$_TFAR_SRC_DIR"/plugins/task_force_radio*.dll; do
-        if [[ -f "$f" ]]; then
-            cp -f "$f" "$plugins_dir/"
-            echo "  Copied: $(basename "$f")"
-            copied=1
-        fi
+    local src_plugins_dir="$_TFAR_SRC_DIR/plugins"
+    local f have_dll=0
+    for f in "$src_plugins_dir"/TFAR_*.dll "$src_plugins_dir"/task_force_radio*.dll; do
+        [[ -f "$f" ]] && have_dll=1
     done
-    [[ -n "$tmpdir" ]] && rm -rf "$tmpdir"
-
-    if [[ "$copied" == 0 ]]; then
+    if [[ "$have_dll" == 0 ]]; then
+        [[ -n "$tmpdir" ]] && rm -rf "$tmpdir"
         echo -e "\e[31mError\e[0m: No TFAR plugin DLL found in: $_TFAR_SRC_ZIP$_TFAR_SRC_DIR"
         return 1
     fi
+
+    # Copy the plugin as TeamSpeak's own .ts3plugin installer does: the DLLs
+    # and their support files (the radio-sounds tree) into the plugins folder.
+    cp -Rf "$src_plugins_dir/." "$plugins_dir/"
+    for f in "$plugins_dir"/TFAR_*.dll "$plugins_dir"/task_force_radio*.dll; do
+        [[ -f "$f" ]] || continue
+        chmod 755 "$f"
+        echo "  Copied: $(basename "$f")"
+    done
+    [[ -n "$tmpdir" ]] && rm -rf "$tmpdir"
 
     echo -e "\e[32mTFAR plugin installed.\e[0m"
     echo "Restart TeamSpeak 3 to load it."

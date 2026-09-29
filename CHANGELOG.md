@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `tfarmod` now installs the complete TFAR plugin package. It previously
+  copied only the plugin DLLs and discarded the `radio-sounds` files, so
+  radio click and beep sounds were missing. It now copies the whole
+  `plugins` tree, as TeamSpeak's own `.ts3plugin` installer does, and
+  sets the DLL permissions to match the ACRE2 plugin.
+
 ## [2.5.1] - 2026-08-29
 
 ### Fixed
