@@ -7,13 +7,43 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-09-29
+
 ### Fixed
 
-- `tfarmod` now installs the complete TFAR plugin package. It previously
-  copied only the plugin DLLs and discarded the `radio-sounds` files, so
-  radio click and beep sounds were missing. It now copies the whole
-  `plugins` tree, as TeamSpeak's own `.ts3plugin` installer does, and
-  sets the DLL permissions to match the ACRE2 plugin.
+- `tfarmod` finds the TFAR plugin in the Workshop `teamspeak/` folder.
+  It looked in the mod root only, so the current 1.0.x package was never
+  found and the command reported the plugin missing.
+- `tfarmod` installs the complete TFAR plugin package. It copied only the
+  plugin DLLs and discarded the `radio-sounds` files, so radio click and
+  beep sounds were missing. It now copies the whole `plugins` tree, as
+  TeamSpeak's own `.ts3plugin` installer does, and sets the DLL
+  permissions to match the ACRE2 plugin.
+
+### Changed
+
+- Guide: new "TFAR Reports Not Connected to Game" section. It names the
+  real causes and states that file permissions are not the cause.
+
+## [2.6.0] - 2026-08-30
+
+### Added
+
+- `syncprofiles backup` and `syncprofiles restore` keep the host copy of
+  Arma 3 profiles in sync with the prefix-local copy.
+
+### Changed
+
+- Guide: full sync with the current script, then Quarto best-practice
+  restructuring.
+- Shell files normalised with `shfmt -i 4`, enforced in CI.
+
+### Fixed
+
+- `bindhost` writes the legacy Shell Folders registry key, so the mapping
+  survives newer Proton versions.
+- Registry value types corrected.
+- Removed a shellcheck SC2329 failure in the test mocks.
 
 ## [2.5.1] - 2026-08-29
 
@@ -263,7 +293,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Steam library discovery from `libraryfolders.vdf`.
 - ACRE2 and TFAR pipe fix after Steam Linux Runtime 4 container isolation.
 
-[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.5.1...master
+[Unreleased]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.6.1...main
+[2.6.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.6.0...v2.6.1
+[2.6.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/UKSFTA/UKSFTA-AOL/compare/v2.3.0...v2.4.0
