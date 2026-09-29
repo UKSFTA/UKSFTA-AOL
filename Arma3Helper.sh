@@ -582,21 +582,10 @@ _update_script() {
         return 0
     fi
 
-    local tmp
-    tmp="$(mktemp "${TMPDIR:-/tmp}/arma3helper.XXXXXX")"
-    if curl -fo "$tmp" "$url"; then
-        chmod +x "$tmp"
-        echo ""
-        echo "This install is in a system location and cannot update itself."
-        echo "Install the new version to your user bin:"
-        echo "  install -m 0755 '$tmp' \"\$HOME/.local/bin/Arma3Helper\""
-        echo "Or run the installer:  ./install.sh"
-    else
-        rm -f "$tmp"
-        echo ""
-        echo -e "\e[31mError\e[0m: Download failed. Script was NOT updated."
-        return 1
-    fi
+    echo ""
+    echo "This install is in a system location and cannot update itself."
+    echo "Reinstall to your user bin instead:"
+    echo "  curl -fsSL https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/install.sh | sh"
     return 0
 }
 
