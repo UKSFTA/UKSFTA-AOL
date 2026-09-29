@@ -29,8 +29,8 @@ jobs:
 
       - name: Formatting check
         run: |
-          if ! /tmp/shfmt -d -i 4 Arma3Helper.sh test_arma3helper.sh; then
-            echo "Formatting differences found. Run: shfmt -w -i 4 Arma3Helper.sh test_arma3helper.sh"
+          if ! /tmp/shfmt -d -i 4 Arma3Helper.sh test_arma3helper.sh install.sh; then
+            echo "Formatting differences found. Run: shfmt -w -i 4 Arma3Helper.sh test_arma3helper.sh install.sh"
             exit 1
           fi
 

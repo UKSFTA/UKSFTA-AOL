@@ -416,18 +416,37 @@ The script is required for ACRE2 and TFAR. Without it, TeamSpeak 3 will not comm
 
 ## Obtaining the Script
 
-Download the script from the GitHub repository:
+Install the script into your user bin directory. It is placed on your PATH,
+so you run it as `Arma3Helper` from any directory. The installer sets the
+file mode, so you do not run `chmod`:
 
 ``` bash
-# Download directly to your home directory:
-curl -o ~/Arma3Helper.sh \
-https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh
-
-# Make it executable:
-chmod +x ~/Arma3Helper.sh
+curl -fsSL https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/install.sh | sh
 ```
 
-Place the script in your home directory for easy access. All commands in this guide assume it is located there.
+Re-run the same command to update. If the installer reports that
+`~/.local/bin` is not on your PATH, add it to your shell profile:
+
+``` bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+To install a specific release, or choose a directory:
+
+``` bash
+./install.sh --ref v2.6.1
+./install.sh --dir ~/bin
+```
+
+If you have a checkout, install the local copy with:
+
+``` bash
+./Arma3Helper.sh installself
+```
+
+The rest of this guide shows commands as `./Arma3Helper.sh`, which is how you
+run a checkout. If you installed with the installer, drop the path and the
+extension, and run `Arma3Helper` instead.
 
 ## Configuring the Script
 

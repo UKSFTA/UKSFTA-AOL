@@ -44,6 +44,15 @@ public to support the wider Arma on Linux/Unix community.
 
 If you are new to this guide, see **Annex B – Quick Reference Commands** in `arma3-linux-guide.qmd` for a complete, step-by-step setup workflow.
 
+Install the script onto your PATH with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/install.sh | sh
+```
+
+Then run `Arma3Helper help`. From a checkout, run `./Arma3Helper.sh help`, or
+install the local copy with `./Arma3Helper.sh installself`.
+
 ## Usage
 
 See the internal help:
