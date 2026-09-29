@@ -411,6 +411,8 @@ _plugin_fn="$(sed -n '/^_check_radio_plugins() {/,/^}/p' "$HELPER")"
 eval "$_plugin_fn"
 _plugin_fn="$(sed -n '/^_find_tfar_plugin_source() {/,/^}/p' "$HELPER")"
 eval "$_plugin_fn"
+_plugin_fn="$(sed -n '/^_checkinstall() {/,/^}/p' "$HELPER")"
+eval "$_plugin_fn"
 _plugin_fn="$(sed -n '/^_install_tfar_plugin() {/,/^}/p' "$HELPER")"
 eval "$_plugin_fn"
 _plugin_fn="$(sed -n '/^_enable_tfar_plugin() {/,/^}/p' "$HELPER")"
@@ -481,11 +483,15 @@ fi
 # HOME must point at the mock so _find_steam_root finds the fake Steam.
 WS_MOD="$MOCK_LIB/steamapps/workshop/content/107410/623475154/TeamSpeak 3 Client/plugins"
 touch "$WS_MOD/TFAR_win64.dll"
+mkdir -p "$WS_MOD/radio-sounds/lr"
+touch "$WS_MOD/radio-sounds/lr/local_start.wav"
 if (HOME="$MOCK_HOME" _install_tfar_plugin) 2>&1 | grep -q "TFAR plugin installed" &&
-    [[ -f "$TS3_ROOT/plugins/TFAR_win64.dll" ]]; then
-    pass "tfarmod copies TFAR plugin from Workshop mod"
+    [[ -f "$TS3_ROOT/plugins/TFAR_win64.dll" ]] &&
+    [[ -f "$TS3_ROOT/plugins/radio-sounds/lr/local_start.wav" ]] &&
+    [[ -x "$TS3_ROOT/plugins/TFAR_win64.dll" ]]; then
+    pass "tfarmod copies the TFAR plugin and radio-sounds from the Workshop mod"
 else
-    fail "tfarmod failed to copy TFAR plugin"
+    fail "tfarmod failed to copy the TFAR plugin or radio-sounds"
 fi
 
 # Case F: tfarmod with no mod installed reports a clear error.
@@ -496,6 +502,34 @@ if echo "$_cf_out" | grep -q "Could not find the TFAR plugin"; then
     pass "tfarmod reports clear error when mod missing"
 else
     fail "tfarmod missing-mod error not shown (got: $_cf_out)"
+fi
+
+# Case G: tfarmod discovers the .ts3_plugin under teamspeak/ (the Workshop
+# 1.0.x layout) and installs the whole package: the DLLs plus radio-sounds.
+if ! command -v zip >/dev/null 2>&1; then
+    skip "tfarmod .ts3_plugin discovery/extraction" "zip not installed"
+else
+    WS_TS="$MOCK_LIB/steamapps/workshop/content/107410/894678801/teamspeak"
+    mkdir -p "$WS_TS"
+    PKG_SRC="$TMPDIR_TEST/tfar-pkg"
+    mkdir -p "$PKG_SRC/plugins/radio-sounds/lr"
+    echo "Name = Task Force Arrowhead Radio v1" >"$PKG_SRC/package.ini"
+    touch "$PKG_SRC/plugins/TFAR_win64.dll"
+    touch "$PKG_SRC/plugins/radio-sounds/lr/local_start.wav"
+    (
+        cd "$PKG_SRC" &&
+            zip -qr "$WS_TS/task_force_radio.ts3_plugin" .
+    )
+    rm -f "$TS3_ROOT/plugins/TFAR_win64.dll"
+    rm -rf "$TS3_ROOT/plugins/radio-sounds"
+    _cg_out="$(HOME="$MOCK_HOME" _install_tfar_plugin 2>&1)"
+    if echo "$_cg_out" | grep -q "TFAR plugin installed" &&
+        [[ -f "$TS3_ROOT/plugins/TFAR_win64.dll" ]] &&
+        [[ -f "$TS3_ROOT/plugins/radio-sounds/lr/local_start.wav" ]]; then
+        pass "tfarmod extracts the .ts3_plugin (teamspeak subdir) and installs radio-sounds"
+    else
+        fail "tfarmod .ts3_plugin discovery/extraction failed (got: $_cg_out)"
+    fi
 fi
 rm -rf "$TMPDIR_TEST/radio-lib" "$TMPDIR_TEST/radio-home"
 
