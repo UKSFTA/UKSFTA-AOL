@@ -1277,6 +1277,46 @@ else
 fi
 rm -rf "$SI_DIR" "$SI_DIR2"
 
+# ===========================================================================
+echo "── 20. Help redesign ──"
+# ===========================================================================
+# _help_short is the compact grouped list; _help_detail holds per-command
+# detail; _help dispatches between them.
+for _fn in _help_short _help_detail _help_all _help; do
+    eval "$(sed -n "/^${_fn}() {/,/^}/p" "$HELPER")"
+done
+export USERCONFIG="$TMPDIR_TEST/userconfig"
+
+_missing=""
+for _c in install installself createconfig winetricks winecfg checkdeps \
+    listmods verifyradio acrecheck acremod tfarmod listproton debug update \
+    prefix syncprofiles bindhost unbindhost help; do
+    _help_short | grep -q -- "$_c" || _missing="$_missing $_c"
+done
+if [[ -z "$_missing" ]]; then
+    pass "help lists every command"
+else
+    fail "help missing commands:$_missing"
+fi
+
+if _help_detail tfarmod | grep -q -- "--enable"; then
+    pass "help <command> shows detail"
+else
+    fail "help tfarmod detail missing --enable"
+fi
+
+if _help_detail bogus >/dev/null 2>&1; then
+    fail "help <unknown> should return non-zero"
+else
+    pass "help <unknown> returns non-zero"
+fi
+
+if _help all | grep -q "Arma3Helper update"; then
+    pass "help all prints full detail"
+else
+    fail "help all missing detail"
+fi
+
 echo ""
 # ===========================================================================
 TOTAL=$((PASS + FAIL + SKIP))

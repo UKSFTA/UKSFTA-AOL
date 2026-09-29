@@ -1877,7 +1877,9 @@ if [[ -z "$COMPAT_DATA_PATH" ]]; then
     _ARMA_LIB="$(_find_arma_library)"
     if [[ -n "$_ARMA_LIB" ]]; then
         COMPAT_DATA_PATH="$_ARMA_LIB/compatdata/107410"
-        echo "Auto-detected Arma 3 in: $_ARMA_LIB"
+        if ! _is_info_command "$1" "$2"; then
+            echo "Auto-detected Arma 3 in: $_ARMA_LIB"
+        fi
     else
         # Fallback to the traditional default location
         COMPAT_DATA_PATH="$HOME/.steam/steam/steamapps/compatdata/107410"
@@ -2749,6 +2751,213 @@ fi
 # Check for script updates (once per day, non-blocking)
 _check_for_update
 
+# _help_short
+#   Print the compact command list, grouped by task. This is the default
+#   output of 'help'. Detail lives in _help_detail.
+_help_short() {
+    echo ""
+    echo "  Arma3Helper: Arma 3 on Linux helper"
+    echo ""
+    cat <<'EOF'
+  Usage: Arma3Helper [command] [args]
+
+  Getting started
+    (no command)     Launch TeamSpeak 3 in Arma's prefix (start Arma first)
+    install          Install TeamSpeak 3 into the prefix
+    installself      Install this script to ~/.local/bin
+    createconfig     Create the external config file
+    winetricks Arma  Install the recommended DLLs for Arma 3
+    winecfg          Open Wine configuration for the prefix
+
+  Radio (ACRE2 / TFAR)
+    tfarmod          Install the TFAR TeamSpeak plugin
+    acremod          Install the ACRE2 TeamSpeak plugin
+    verifyradio      Verify the whole radio chain
+    acrecheck        Diagnose the radio-to-game connection
+    listmods         List installed and loaded mods
+
+  Prefix and profiles
+    prefix doctor    Diagnose the Wine prefix (read-only)
+    prefix reset     Repair the prefix, keep your data
+    syncprofiles     Sync profiles with the host
+    bindhost         Point Documents and Downloads at the host
+    unbindhost       Revert Documents and Downloads to the prefix
+
+  Maintenance
+    checkdeps        Check dependencies and radio plugins
+    listproton       List Proton versions
+    debug            Print diagnostics to share for support
+    update           Update the script from GitHub
+    help [command]   Show this help, or detail for one command
+
+  Run 'Arma3Helper help <command>' for detail on one command.
+
+EOF
+}
+
+# _help_detail <command>
+#   Print detailed help for one command. Returns 1 for an unknown command.
+_help_detail() {
+    case "$1" in
+    launch | "")
+        echo "Arma3Helper"
+        echo "  Launch TeamSpeak 3 inside Arma 3's Wine prefix."
+        echo "  Start Arma 3 first, or the radio plugins cannot connect."
+        ;;
+    install)
+        echo "Arma3Helper install [path/to/TS3-installer.exe]"
+        echo "  Install TeamSpeak 3 (Windows) into Arma's prefix."
+        echo "  With no path, downloads and verifies the latest installer."
+        echo "  Installs silently for All Users."
+        ;;
+    installself)
+        echo "Arma3Helper installself [dir]"
+        echo "  Install the script as the 'Arma3Helper' command in"
+        echo "  ~/.local/bin (or the directory given). Re-run to update."
+        ;;
+    winetricks)
+        echo "Arma3Helper winetricks Arma"
+        echo "  Install the recommended DLLs for Arma 3. Run once before"
+        echo "  your first session to fix audio and visual issues."
+        echo ""
+        echo "Arma3Helper winetricks <args>"
+        echo "  Run any winetricks command inside Arma 3's Wine prefix."
+        ;;
+    winecfg)
+        echo "Arma3Helper winecfg"
+        echo "  Open Wine configuration for Arma 3's prefix."
+        ;;
+    checkdeps)
+        echo "Arma3Helper checkdeps"
+        echo "  Check system packages (GStreamer, winetricks, curl, Vulkan),"
+        echo "  the BattlEye runtime, the noexec mount check, and the"
+        echo "  ACRE2 and TFAR radio plugins."
+        ;;
+    listmods)
+        echo "Arma3Helper listmods"
+        echo "  List mods installed and mods loaded in the latest session."
+        echo "  Use 'listmods loaded' or 'listmods installed' for one list."
+        ;;
+    verifyradio)
+        echo "Arma3Helper verifyradio"
+        echo "  Verify the full radio chain for ACRE2 and TFAR: Workshop"
+        echo "  mod downloaded, mod loaded in the game, plugin in TeamSpeak."
+        ;;
+    acrecheck)
+        echo "Arma3Helper acrecheck"
+        echo "  Diagnose why the radio plugins cannot find the Arma 3 game"
+        echo "  instance: Arma running, radio mod loaded."
+        ;;
+    acremod)
+        echo "Arma3Helper acremod"
+        echo "  Install the ACRE2 plugin manually. ACRE2 normally installs"
+        echo "  it automatically. Use this when auto-install failed."
+        ;;
+    tfarmod)
+        echo "Arma3Helper tfarmod [--enable]"
+        echo "  Install the TFAR plugin into the prefix TeamSpeak install."
+        echo "  TFAR does not auto-install its plugin."
+        echo "  --enable re-enables a plugin TeamSpeak disabled after a crash."
+        ;;
+    listproton)
+        echo "Arma3Helper listproton"
+        echo "  List Proton versions installed on this system, including"
+        echo "  official and custom (GE-Proton) builds."
+        ;;
+    debug)
+        echo "Arma3Helper debug"
+        echo "  Print diagnostic information. Share this output when you"
+        echo "  ask for help on the Discord."
+        ;;
+    update)
+        echo "Arma3Helper update"
+        echo "  Update the script from GitHub. This resets in-script edits."
+        echo "  Use an external config file to keep your settings."
+        ;;
+    createconfig)
+        echo "Arma3Helper createconfig"
+        echo "  Create the external config at $USERCONFIG/config. It"
+        echo "  persists across script updates."
+        ;;
+    prefix)
+        echo "Arma3Helper prefix doctor"
+        echo "  Diagnose the Wine prefix (read-only): version file, system"
+        echo "  directory, drive mappings, and mount options."
+        echo ""
+        echo "Arma3Helper prefix reset [--full]"
+        echo "  Repair the prefix in place, keeping your data."
+        echo "  --full recreates the prefix after backing up profiles and"
+        echo "  TeamSpeak data."
+        ;;
+    syncprofiles)
+        echo "Arma3Helper syncprofiles backup|restore"
+        echo "  backup: copy prefix profiles to the host after a session."
+        echo "  restore: copy host profiles into the prefix after a reset."
+        ;;
+    bindhost)
+        echo "Arma3Helper bindhost"
+        echo "  Point Arma's Documents and Downloads at your real host"
+        echo "  folders. Not reliable on Steam Linux Runtime 4; prefer"
+        echo "  syncprofiles."
+        ;;
+    unbindhost)
+        echo "Arma3Helper unbindhost"
+        echo "  Revert Documents and Downloads to the prefix-local folders."
+        ;;
+    help)
+        echo "Arma3Helper help [command|all]"
+        echo "  Show the command list. 'help <command>' shows detail for"
+        echo "  one command. 'help all' shows every command in full."
+        ;;
+    *)
+        echo "No help for command: $1" >&2
+        echo "Run 'Arma3Helper help' for the command list." >&2
+        return 1
+        ;;
+    esac
+}
+
+# _help_all
+#   Print detailed help for every command. Paged when interactive.
+_help_all() {
+    local cmd
+    local -a commands=(
+        install installself createconfig winetricks winecfg
+        checkdeps listmods verifyradio acrecheck acremod tfarmod
+        listproton debug update prefix syncprofiles bindhost unbindhost help
+    )
+    local out
+    out="$(
+        _help_detail launch
+        echo ""
+        for cmd in "${commands[@]}"; do
+            _help_detail "$cmd"
+            echo ""
+        done
+    )"
+    if [[ -t 1 ]] && command -v less >/dev/null 2>&1; then
+        printf '%s\n' "$out" | less -R
+    else
+        printf '%s\n' "$out"
+    fi
+}
+
+# _help [topic]
+#   Print the command list, detail for one command, or all detail.
+_help() {
+    case "${1:-}" in
+    "")
+        _help_short
+        ;;
+    all)
+        _help_all
+        ;;
+    *)
+        _help_detail "$1"
+        ;;
+    esac
+}
+
 case "$1" in
 
 # -------------------------------------------------------------------------
@@ -3230,118 +3439,15 @@ case "$1" in
     ;;
 
 # -------------------------------------------------------------------------
-"help" | *)
-    # -------------------------------------------------------------------------
-    # Print usage information.
-    echo ""
-    echo -e "  \e[36m══════════════════════════════════════════════════════════════\e[0m"
-    echo -e "  \e[1;36mArma3Helper.sh – Usage Guide\e[0m"
-    echo -e "  \e[36m══════════════════════════════════════════════════════════════\e[0m"
-    echo ""
-    echo " ./Arma3Helper.sh"
-    echo "     Launch TeamSpeak 3 inside Arma 3's Wine prefix."
-    echo "     Always start Arma 3 FIRST before running this."
-    echo ""
-    echo " ./Arma3Helper.sh install [path/to/TS3-installer.exe]"
-    echo "     Install TeamSpeak 3 (Windows version) into Arma's prefix."
-    echo "     With no path, downloads and verifies the latest installer"
-    echo "     automatically. Installs silently for All Users."
-    echo ""
-    echo " ./Arma3Helper.sh installself [dir]"
-    echo "     Install the script as the 'Arma3Helper' command in"
-    echo "     ~/.local/bin (or the directory given). Re-run to update."
-    echo ""
-    echo " ./Arma3Helper.sh winetricks Arma"
-    echo "     Install recommended DLLs for Arma 3. Run this once before"
-    echo "     your first session to fix audio and visual issues."
-    echo ""
-    echo " ./Arma3Helper.sh winetricks <args>"
-    echo "     Run any winetricks command inside Arma 3's Wine prefix."
-    echo ""
-    echo " ./Arma3Helper.sh winecfg"
-    echo "     Open Wine configuration for Arma 3's prefix."
-    echo ""
-    echo " ./Arma3Helper.sh checkdeps"
-    echo "     Check all required system packages (GStreamer, winetricks,"
-    echo "     curl, Vulkan tools) plus the BattlEye runtime, the noexec"
-    echo "     mount check, and the ACRE2/TFAR radio plugins."
-    echo ""
-    echo " ./Arma3Helper.sh listmods"
-    echo "     List mods installed and mods loaded in the latest session."
-    echo "     Use 'listmods loaded' or 'listmods installed' for one list."
-    echo ""
-    echo " ./Arma3Helper.sh verifyradio"
-    echo "     Verify the full radio chain for ACRE2 and TFAR: Workshop"
-    echo "     mod downloaded, mod loaded in the game, plugin in TeamSpeak."
-    echo ""
-    echo " ./Arma3Helper.sh acrecheck"
-    echo "     Diagnose why radio plugins cannot find the Arma 3 game"
-    echo "     instance: Arma running, radio mod loaded."
-    echo ""
-    echo " ./Arma3Helper.sh acremod"
-    echo "     Install the ACRE2 plugin manually. ACRE2 normally installs"
-    echo "     it automatically; use this when auto-install failed."
-    echo ""
-    echo " ./Arma3Helper.sh tfarmod"
-    echo "     Install the Task Force Radio plugin into the prefix"
-    echo "     TeamSpeak install. TFAR does not auto-install its plugin."
-    echo ""
-    echo " ./Arma3Helper.sh tfarmod --enable"
-    echo "     Re-enable a radio plugin TeamSpeak disabled after a crash."
-    echo ""
-    echo " ./Arma3Helper.sh listproton"
-    echo "     List all Proton versions installed on this system,"
-    echo "     including official and custom/GE builds."
-    echo ""
-    echo " ./Arma3Helper.sh debug"
-    echo "     Print full diagnostic information. Share this output when"
-    echo "     asking for help on the Discord."
-    echo ""
-    echo " ./Arma3Helper.sh update"
-    echo "     Update this script from GitHub. This resets in-script edits."
-    echo "     Use an external config file to avoid losing your settings."
-    echo ""
-    echo " ./Arma3Helper.sh createconfig"
-    echo "     Create an external config at $USERCONFIG/config"
-    echo "     that persists across script updates."
-    echo ""
-    echo " ./Arma3Helper.sh prefix doctor"
-    echo "     Diagnose Arma's Wine prefix (read-only). Checks the"
-    echo "     version file, system directory, drive mappings, and mount."
-    echo ""
-    echo " ./Arma3Helper.sh prefix reset"
-    echo "     Repair the prefix in place. Rebuilds Proton's system files"
-    echo "     and preserves your profiles, loadouts, and TeamSpeak data."
-    echo ""
-    echo " ./Arma3Helper.sh prefix reset --full"
-    echo "     Recreate the prefix. Backs up your Arma 3 profiles and"
-    echo "     TeamSpeak data first, then moves the old prefix aside."
-    echo ""
-    echo " ./Arma3Helper.sh syncprofiles backup"
-    echo "     Copy prefix profiles to the host (run after each session)."
-    echo ""
-    echo " ./Arma3Helper.sh syncprofiles restore"
-    echo "     Copy host profiles into the prefix (run after a fresh prefix)."
-    echo ""
-    echo " ./Arma3Helper.sh bindhost"
-    echo "     Point Arma's Documents and Downloads at your real host"
-    echo "     folders. Not reliable on Steam Linux Runtime 4; prefer"
-    echo "     syncprofiles."
-    echo ""
-    echo " ./Arma3Helper.sh unbindhost"
-    echo "     Revert Documents and Downloads to the prefix-local folders."
-    echo ""
-    echo " ./Arma3Helper.sh help"
-    echo "     Show this help message."
-    echo ""
-    echo "================================================================"
-    echo " Before reporting issues, check your settings and run:"
-    echo "   ./Arma3Helper.sh checkdeps"
-    echo "   ./Arma3Helper.sh debug"
-    echo ""
-    echo " Support: https://discord.gg/p28Ra36  (ArmaOnUnix Discord)"
-    echo "================================================================"
-    echo ""
+"help")
+    _help "${2:-}"
     ;;
-
+"-h" | "--help")
+    _help
+    ;;
+*)
+    echo -e "\e[31mError\e[0m: Unknown command: $1"
+    echo "Run 'Arma3Helper help' for the command list."
+    exit 1
+    ;;
 esac
