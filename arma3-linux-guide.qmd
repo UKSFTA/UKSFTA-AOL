@@ -421,7 +421,7 @@ Download the script from the GitHub repository:
 ``` bash
 # Download directly to your home directory:
 curl -o ~/Arma3Helper.sh \
-https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh
+https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh
 
 # Make it executable:
 chmod +x ~/Arma3Helper.sh
@@ -1253,7 +1253,7 @@ Enable it by adding `MANGOHUD=1 %command%` to the Steam launch options.
 ``` bash
 # 1. Download the script
 curl -o ~/Arma3Helper.sh \
-https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh
+https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh
 chmod +x ~/Arma3Helper.sh
 
 # 2. Create the config file (auto-detection works out of the box)

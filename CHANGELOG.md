@@ -7,6 +7,13 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Repointed all `master` branch references to `main` after the default
+  branch changed. The self-update check, the `update` command, and
+  `createconfig` fetched from the deleted `master` branch and failed.
+  The docs publish workflow now runs on `main` as well.
+
 ## [2.6.1] - 2026-09-29
 
 ### Fixed
