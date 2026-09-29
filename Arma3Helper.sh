@@ -162,7 +162,7 @@ _check_for_update() {
     # Use a short timeout so offline/airgapped use does not stall commands.
     local remote_ver
     remote_ver=$(curl -fs --max-time 2 --connect-timeout 2 \
-        "https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh" \
+        "https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh" \
         2>/dev/null | grep -m1 '^_SCRIPTVER=' | cut -d'"' -f2)
 
     # Record check time only on a successful fetch, so a flaky network
@@ -2906,7 +2906,7 @@ case "$1" in
     # Check for updates via GitHub (ignore cache — user explicitly asked)
     if command -v curl &>/dev/null; then
         _remote_ver=$(curl -fs --max-time 5 \
-            "https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh" \
+            "https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh" \
             2>/dev/null | grep -m1 '^_SCRIPTVER=' | cut -d'"' -f2)
         if [[ -n "$_remote_ver" ]]; then
             if [[ "$_remote_ver" == "$_SCRIPTVER" ]]; then
@@ -2996,7 +2996,7 @@ case "$1" in
         # then move it into place atomically. This protects the running
         # script from truncation if the download is interrupted.
         _tmpscript="$0.tmp"
-        if curl -fo "$_tmpscript" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
+        if curl -fo "$_tmpscript" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh; then
             chmod +x "$_tmpscript"
             cp -f "$0" "$0.bak-arma3helper"
             mv -f "$_tmpscript" "$0"
@@ -3016,7 +3016,7 @@ case "$1" in
         _dest="$PWD/Arma3Helper.sh"
         echo "Cannot write to '$0' (permission denied)."
         echo "Downloading to: $_dest"
-        if curl -fo "$_dest" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/Arma3Helper.sh; then
+        if curl -fo "$_dest" https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/Arma3Helper.sh; then
             chmod +x "$_dest"
             echo ""
             echo "Update complete. Replace the installed script manually:"
@@ -3159,7 +3159,7 @@ case "$1" in
     # mktemp avoids leaving an orphaned .tmp file on Ctrl-C
     _tmpconfig="$(mktemp "$USERCONFIG/config.XXXXXX")"
     if curl -fo "$_tmpconfig" \
-        https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/master/config; then
+        https://raw.githubusercontent.com/UKSFTA/UKSFTA-AOL/main/config; then
         mv "$_tmpconfig" "$USERCONFIG/config"
         echo ""
         echo "Config file created at: $USERCONFIG/config"

@@ -2,11 +2,11 @@
 
 ## Supported Versions
 
-Only the latest release on the `master` branch receives security fixes.
+Only the latest release on the `main` branch receives security fixes.
 
 | Version | Supported |
 |---|---|
-| latest (`master`) | yes |
+| latest (`main`) | yes |
 | earlier releases | no |
 
 ## Reporting a Vulnerability

@@ -19,7 +19,7 @@ All contributions must meet these standards:
 ## Development Workflow
 
 1. Fork the repository.
-2. Create a feature branch from `master`:
+2. Create a feature branch from `main`:
    ```
    git checkout -b fix/short-description
    ```
@@ -39,7 +39,7 @@ All contributions must meet these standards:
    - <requirement or defect reference>
    ```
    Example: `fix: handle empty prefix directory`
-6. Open a pull request to `master`.
+6. Open a pull request to `main`.
 
 ## Test Suite
 
