@@ -29,7 +29,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `update` no longer writes into the current directory when the script sits
   in a system location it cannot write. It updates the user bin copy when
-  one exists, otherwise it leaves a temp file and points at the installer.
+  one exists, otherwise it points at the installer.
 - Repointed all `master` branch references to `main` after the default
   branch changed. The self-update check, the `update` command, and
   `createconfig` fetched from the deleted `master` branch and failed.
